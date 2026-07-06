@@ -31,6 +31,8 @@ add_executable(AlgorithmViz
     src/editor/html_editor.h
     src/export/svg_exporter.cpp
     src/export/svg_exporter.h
+    src/ui/main_window.cpp
+    src/ui/main_window.h
 )
 
 target_link_libraries(AlgorithmViz PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui)
