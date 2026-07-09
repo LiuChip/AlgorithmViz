@@ -1,3 +1,5 @@
+#ifndef SHAPE
+#define SHAPE
 #include <Qt>
 #include <QColor>
 #include <QString>
@@ -6,6 +8,50 @@
 #include <QSizeF>
 #include <QFont>
 #include <QGraphicsItem>
+#include <QPainter>
+
+struct Border{
+    qreal borderWidth = 0.0;
+    QColor borderColor = Qt::transparent;
+    Qt::PenStyle borderStyle = Qt::NoPen;
+    Border() = default;
+    Border(qreal borderWidth,QColor borderColor,Qt::PenStyle borderStyle)
+    {
+        this->borderWidth=borderWidth;
+        this->borderColor=borderColor;
+        this->borderStyle=borderStyle;
+    }
+};
+
+struct FillStyle{
+    QColor fillColor = Qt::transparent;
+    qreal fillOpacity = 1.0; //transparency
+    FillStyle() = default;
+    FillStyle(QColor fillColor,qreal fillOpacity)
+    {
+        this->fillColor=fillColor;
+        this->fillOpacity=fillOpacity;
+    }
+};
+
+struct TextStyle{
+    QString text = "";
+    qreal fontSize = 16;
+    QString fontFamily = "Arial";
+    int fontWeight = QFont::Normal;
+    QColor textColor = Qt::black;
+    Qt::AlignmentFlag textAligh = Qt::AlignCenter;
+    TextStyle() = default;
+    TextStyle(QString text,qreal fontSize,QString fontFamily,int fontWeight,QColor textColor,Qt::AlignmentFlag textAligh)
+    {
+        this->text=text;
+        this->fontSize=fontSize;
+        this->fontFamily=fontFamily;
+        this->fontWeight=fontWeight;
+        this->textColor=textColor;
+        this->textAligh=textAligh;
+    }
+};
 
 class Shape:public QGraphicsItem
 {
@@ -20,26 +66,16 @@ protected:
     qreal rotation = 0.0;
 
     //Border Style
-    struct BorderStyle{
-        qreal borderWidth = 0.0;
-        QColor borderColor = Qt::transparent;
-        Qt::PenStyle borderStyle = Qt::NoPen;
-    };
+
+    Border border;
 
     //Filling Style
-    struct FillStyle{
-        QColor fillColor = Qt::transparent;
-        qreal fillOpacity = 1.0; //transparency
-    };
+
+    FillStyle fillStyle;
+
     //Text Style
-    struct TextStyle{
-        QString text = "";
-        qreal fontSize = 16;
-        QString fontFamily = "Arial";
-        int fontWeight = QFont::Normal;
-        QColor textColor = Qt::black;
-        Qt::AlignmentFlag textAligh = Qt::AlignCenter;
-    };
+
+    TextStyle textStyle;
 
     //Indentify
     int id = -1;
@@ -65,17 +101,17 @@ public:
     qreal getRotation() const;
     void setRotation(qreal rotation);
 
-    BorderStyle getBorderInfo() const;
-    void setBorderInfo(BorderStyle borderstyle);
+    Border getBorderInfo() const;
+    void setBorderInfo(Border borderStyle);
     void setBorderInfo();
 
     FillStyle getFillInfo() const;
     void setFillInfo();
-    void setFillInfo(FillStyle fillstyle);
+    void setFillInfo(FillStyle fillStyle);
 
     TextStyle getTextInfo() const;
     void setTextInfo();
-    void setTextInfo(TextStyle textstyle);
+    void setTextInfo(TextStyle textStyle);
 
     int getID() const;
 
@@ -100,5 +136,8 @@ public:
     Shape();
     Shape(qreal x, qreal y, qreal width, qreal height);
     Shape(QPointF point,QSizeF size);
+    virtual ~Shape() = default;
 
 };
+
+#endif
