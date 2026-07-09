@@ -11,10 +11,22 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 
 add_executable(AlgorithmViz
     src/main.cpp
+
+    # === Core ===
     src/core/canvas.cpp
     src/core/canvas.h
-    src/core/shape_base.cpp
-    src/core/shape_base.h
+    src/core/undo_manager.cpp
+    src/core/undo_manager.h
+
+    # === Core / Shape Controllers ===
+    src/core/shape_controller/canvas_controller.cpp
+    src/core/shape_controller/canvas_controller.h
+    src/core/shape_controller/connector_controller.cpp
+    src/core/shape_controller/connector_controller.h
+
+    # === Shapes ===
+    src/shapes/shape.cpp
+    src/shapes/shape.h
     src/shapes/rect_shape.cpp
     src/shapes/rect_shape.h
     src/shapes/ellipse_shape.cpp
@@ -25,12 +37,16 @@ add_executable(AlgorithmViz
     src/shapes/arrow_shape.h
     src/shapes/text_label.cpp
     src/shapes/text_label.h
-    src/connectors/connector.cpp
-    src/connectors/connector.h
+
+    # === Editor ===
     src/editor/html_editor.cpp
     src/editor/html_editor.h
+
+    # === Export ===
     src/export/svg_exporter.cpp
     src/export/svg_exporter.h
+
+    # === UI ===
     src/ui/main_window.cpp
     src/ui/main_window.h
 )
