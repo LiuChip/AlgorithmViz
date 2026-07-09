@@ -1,11 +1,19 @@
+# Build
 build/
+CMakeFiles/
+cmake_install.cmake
+Makefile
 *.o
 *.obj
 *.exe
 *.app
-CMakeFiles/
-cmake_install.cmake
-Makefile
+
+# IDE
 .vscode/
 .idea/
+.qtcreator/
 *.user
+
+# OS
+.DS_Store
+Thumbs.db
