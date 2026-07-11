@@ -111,3 +111,26 @@ src/
 - Shift 约束画正圆/正方形 → 在 Canvas 层处理，不在 Shape 里
 - 复制粘贴 → MainWindow 快捷键绑定 Canvas 方法
 - ID 自动分配，不对外提供 setter
+
+## 💻 开发环境
+
+| 环境 | 路径 |
+|:----|:----|
+| **Mac 本地** | `~/Workspace/Project C & C++/AlgorithmViz/` |
+| **Workspace symlink** | `projects/algorithmviz/` |
+| **Windows 本地** | `D:\Qt_Project\AlgorithmViz\` |
+| **GitHub** | `LiuChip/AlgorithmViz` |
+
+### Qt 安装
+- **位置**：`~/Qt/6.11.1/macos`（官方 DMG 安装，非 Homebrew）
+- **qmake**：`~/Qt/6.11.1/macos/bin/qmake`
+- **CMake**：`CMAKE_PREFIX_PATH` 指向 Qt 安装目录
+
+## 📝 暑假计划（2026）
+
+AlgorithmViz 作为暑假四大任务之一，与 Java 复健、LeetCode 刷题、CSAPP 补坑并行推进。MVP 完成后即可投入使用，后续按需迭代。
+
+### 项目状态
+- ✅ 核心 Shape 体系 — 完成
+- 🔄 交互与控制 — 待实现
+- ❌ 导出与编辑器 — 待实现
