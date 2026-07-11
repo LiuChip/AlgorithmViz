@@ -14,6 +14,9 @@ Makefile
 .qtcreator/
 *.user
 
+# Handover / AI docs (not part of the project)
+AI_HANDOVER.md
+
 # OS
 .DS_Store
 Thumbs.db
