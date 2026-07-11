@@ -1,118 +1,121 @@
 #ifndef SHAPE_H
 #define SHAPE_H
 
-#include <Qt>
 #include <QColor>
-#include <QString>
-#include <QVector>
-#include <QPointF>
-#include <QSizeF>
 #include <QFont>
 #include <QGraphicsItem>
 #include <QPainter>
+#include <QPointF>
+#include <QSizeF>
+#include <QString>
+#include <QVector>
+#include <Qt>
 
 struct Border {
-    qreal borderWidth = 0.0;
-    QColor borderColor = Qt::transparent;
-    Qt::PenStyle borderStyle = Qt::NoPen;
+  qreal borderWidth = 0.0;
+  QColor borderColor = Qt::transparent;
+  Qt::PenStyle borderStyle = Qt::NoPen;
 
-    Border() = default;
-    Border(qreal borderWidth, QColor borderColor, Qt::PenStyle borderStyle)
-        : borderWidth(borderWidth), borderColor(borderColor), borderStyle(borderStyle) {}
+  Border() = default;
+  Border(qreal borderWidth, QColor borderColor, Qt::PenStyle borderStyle)
+      : borderWidth(borderWidth), borderColor(borderColor),
+        borderStyle(borderStyle) {}
 };
 
 struct FillStyle {
-    QColor fillColor = Qt::transparent;
-    qreal fillOpacity = 1.0;
+  QColor fillColor = Qt::transparent;
+  qreal fillOpacity = 1.0;
 
-    FillStyle() = default;
-    FillStyle(QColor fillColor, qreal fillOpacity)
-        : fillColor(fillColor), fillOpacity(fillOpacity) {}
+  FillStyle() = default;
+  FillStyle(QColor fillColor, qreal fillOpacity)
+      : fillColor(fillColor), fillOpacity(fillOpacity) {}
 };
 
 struct TextStyle {
-    QString text = "";
-    qreal fontSize = 16;
-    QString fontFamily = "Arial";
-    int fontWeight = QFont::Normal;
-    QColor textColor = Qt::black;
-    Qt::AlignmentFlag textAligh = Qt::AlignCenter;
+  QString text = "";
+  qreal fontSize = 16;
+  QString fontFamily = "Arial";
+  int fontWeight = QFont::Normal;
+  QColor textColor = Qt::black;
+  Qt::AlignmentFlag textAligh = Qt::AlignCenter;
 
-    TextStyle() = default;
-    TextStyle(QString text, qreal fontSize, QString fontFamily, int fontWeight, QColor textColor, Qt::AlignmentFlag textAligh)
-        : text(text), fontSize(fontSize), fontFamily(fontFamily), fontWeight(fontWeight), textColor(textColor), textAligh(textAligh) {}
+  TextStyle() = default;
+  TextStyle(QString text, qreal fontSize, QString fontFamily, int fontWeight,
+            QColor textColor, Qt::AlignmentFlag textAligh)
+      : text(text), fontSize(fontSize), fontFamily(fontFamily),
+        fontWeight(fontWeight), textColor(textColor), textAligh(textAligh) {}
 };
 
-class Shape : public QGraphicsItem
-{
+class Shape : public QGraphicsItem {
 protected:
-    static int IdVal;
-    static int Layer;
+  static int IdVal;
+  static int Layer;
 
-    qreal width = 0.0;
-    qreal height = 0.0;
+  qreal width = 0.0;
+  qreal height = 0.0;
 
-    Border border;
-    FillStyle fillStyle;
-    TextStyle textStyle;
+  Border border;
+  FillStyle fillStyle;
+  TextStyle textStyle;
 
-    int id = -1;
-    QString name = "";
-    bool visible = true;
-    int layer = 0;
-    bool lock_stat = false;
+  int id = -1;
+  QString name = "";
+  bool visible = true;
+  int layer = 0;
+  bool lock_stat = false;
 
-    QVector<QPointF> anchorPoints;
+  QVector<QPointF> anchorPoints;
 
 private:
-    void setID();
+  void setID();
 
 public:
-    Shape() = delete;
-    Shape(qreal x, qreal y, qreal width, qreal height);
-    Shape(QPointF point, QSizeF size);
-    virtual ~Shape() = default;
+  Shape() = delete;
+  Shape(qreal x, qreal y, qreal width, qreal height);
+  Shape(QPointF point, QSizeF size);
+  virtual ~Shape() = default;
 
-    QPointF getPosition() const;
-    void setPosition(QPointF point);
-    void setPosition(qreal x, qreal y);
+  QPointF getPosition() const;
+  void setPosition(QPointF point);
+  void setPosition(qreal x, qreal y);
 
-    QSizeF getSize() const;
-    void setSize(QSizeF size);
-    void setSize(qreal width, qreal height);
+  QSizeF getSize() const;
+  void setSize(QSizeF size);
+  void setSize(qreal width, qreal height);
 
-    qreal getRotation() const;
-    void setRotation(qreal rotation);
+  qreal getRotation() const;
+  void setRotation(qreal rotation);
 
-    Border getBorderInfo() const;
-    virtual void setBorderInfo(Border borderStyle);
-    virtual void setBorderInfo();
+  Border getBorderInfo() const;
+  virtual void setBorderInfo(Border borderStyle);
+  virtual void setBorderInfo();
 
-    FillStyle getFillInfo() const;
-    virtual void setFillInfo();
-    virtual void setFillInfo(FillStyle fillStyle);
+  FillStyle getFillInfo() const;
+  virtual void setFillInfo();
+  virtual void setFillInfo(FillStyle fillStyle);
 
-    TextStyle getTextInfo() const;
-    virtual void setTextInfo();
-    virtual void setTextInfo(TextStyle textStyle);
+  TextStyle getTextInfo() const;
+  virtual void setTextInfo();
+  virtual void setTextInfo(TextStyle textStyle);
 
-    int getID() const;
+  int getID() const;
 
-    QString getName() const;
-    void setName(QString name = "");
+  QString getName() const;
+  void setName(QString name = "");
 
-    bool getVisible() const;
-    void changeVisibility();
+  bool getVisible() const;
+  void changeVisibility();
 
-    int getLayer() const;
-    void setLayer(bool upper = true);
-    void setLayer(int layer);
+  int getLayer() const;
+  void setLayer(bool upper = true);
+  void setLayer(int layer);
 
-    bool getLockStat() const;
-    void changeLockStat();
+  bool getLockStat() const;
+  void changeLockStat();
 
-    QRectF boundingRect() const override = 0;
-    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override = 0;
+  QRectF boundingRect() const override = 0;
+  void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+             QWidget *widget) override = 0;
 };
 
 #endif // SHAPE_H
