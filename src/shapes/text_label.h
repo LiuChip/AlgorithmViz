@@ -6,12 +6,14 @@
 class TextLabel : public Shape
 {
 public:
-    TextLabel();
     TextLabel(qreal x, qreal y, const QString &text);
     TextLabel(QPointF point, const QString &text);
 
     void setText(const QString &text);
     QString getText() const;
+
+    void setTextInfo(TextStyle textStyle) override;
+    void setTextInfo() override;
 
 protected:
     QRectF boundingRect() const override;
@@ -19,6 +21,7 @@ protected:
 
 private:
     QSizeF calculateTextSize() const;
+    void refreshTextGeometry();
 };
 
 #endif // TEXT_LABEL_H

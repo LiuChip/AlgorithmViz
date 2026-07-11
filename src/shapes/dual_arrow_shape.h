@@ -6,7 +6,14 @@
 class DualArrowShape : public LineShape
 {
 public:
-    DualArrowShape();
+    using LineShape::LineShape;
+
+protected:
+    QRectF boundingRect() const override;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+
+private:
+    qreal arrowSize = 10.0;
 };
 
 #endif // DUAL_ARROW_SHAPE_H

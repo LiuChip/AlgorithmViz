@@ -1,11 +1,5 @@
 #include "ellipse_shape.h"
 
-EllipseShape::EllipseShape() : Shape() {}
-EllipseShape::EllipseShape(qreal x, qreal y, qreal width, qreal height)
-    : Shape(x, y, width, height) {}
-EllipseShape::EllipseShape(QPointF point, QSizeF size)
-    : Shape(point, size) {}
-
 QRectF EllipseShape::boundingRect() const
 {
     qreal halfPen = border.borderWidth / 2.0;
@@ -19,7 +13,6 @@ void EllipseShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
 
     QRectF rect(0, 0, width, height);
 
-    // Fill
     if (fillStyle.fillColor != Qt::transparent)
     {
         QColor fill = fillStyle.fillColor;
@@ -31,7 +24,6 @@ void EllipseShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
         painter->setBrush(Qt::NoBrush);
     }
 
-    // Border
     if (border.borderWidth > 0.0 && border.borderStyle != Qt::NoPen)
     {
         QPen pen(border.borderColor, border.borderWidth, border.borderStyle);
@@ -44,7 +36,6 @@ void EllipseShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
 
     painter->drawEllipse(rect);
 
-    // Text
     if (!textStyle.text.isEmpty())
     {
         painter->setPen(textStyle.textColor);

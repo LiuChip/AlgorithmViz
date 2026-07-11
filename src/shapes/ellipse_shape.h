@@ -6,9 +6,7 @@
 class EllipseShape : public Shape
 {
 public:
-    EllipseShape();
-    EllipseShape(qreal x, qreal y, qreal width, qreal height);
-    EllipseShape(QPointF point, QSizeF size);
+    using Shape::Shape;
 
 protected:
     QRectF boundingRect() const override;

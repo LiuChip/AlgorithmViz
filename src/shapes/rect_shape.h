@@ -6,9 +6,7 @@
 class RectShape : public Shape
 {
 public:
-    RectShape();
-    RectShape(qreal x, qreal y, qreal width, qreal height);
-    RectShape(QPointF point, QSizeF size);
+    using Shape::Shape;
 
 protected:
     QRectF boundingRect() const override;

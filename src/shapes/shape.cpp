@@ -3,68 +3,189 @@
 int Shape::IdVal = 0;
 int Shape::Layer = 0;
 
-void Shape::setID(){id = IdVal++;}
+void Shape::setID()
+{
+    id = IdVal++;
+}
 
-// === Position & Size ===
-QPointF Shape::getPosition() const {return QPointF(x,y);}
-void Shape::setPosition(QPointF point) { x = point.x(); y = point.y(); update(); }
-void Shape::setPosition(qreal x, qreal y) { this->x = x; this->y = y; update(); }
+QPointF Shape::getPosition() const
+{
+    return pos();
+}
 
-QSizeF Shape::getSize() const{return QSizeF(width,height);}
-void Shape::setSize(QSizeF size){width=size.width();height=size.height();update();}
-void Shape::setSize(qreal width,qreal height){this->width=width;this->height=height;update();}
+void Shape::setPosition(QPointF point)
+{
+    setPos(point);
+    update();
+}
 
-qreal Shape::getRotation()const{return rotation;}
-void Shape::setRotation(qreal rotation){this->rotation=rotation;update();}
+void Shape::setPosition(qreal x, qreal y)
+{
+    setPos(x, y);
+    update();
+}
 
-// === Border ===
-Border Shape::getBorderInfo() const{return border;}
-void Shape::setBorderInfo(Border border){this->border=border;update();}
-void Shape::setBorderInfo(){border=Border();update();}
+QSizeF Shape::getSize() const
+{
+    return QSizeF(width, height);
+}
 
-// === Fill ===
-FillStyle Shape::getFillInfo() const{return fillStyle;}
-void Shape::setFillInfo(){fillStyle=FillStyle();update();}
-void Shape::setFillInfo(FillStyle fillStyle){this->fillStyle=fillStyle;update();}
+void Shape::setSize(QSizeF size)
+{
+    setSize(size.width(), size.height());
+}
 
-// === Text ===
-TextStyle Shape::getTextInfo() const{return textStyle;}
-void Shape::setTextInfo(){textStyle=TextStyle();update();}
-void Shape::setTextInfo(TextStyle textStyle){this->textStyle=textStyle;update();}
+void Shape::setSize(qreal width, qreal height)
+{
+    if (this->width == width && this->height == height) {
+        return;
+    }
 
-// === ID ===
-int Shape::getID() const{return id;}
+    prepareGeometryChange();
+    this->width = width;
+    this->height = height;
+    update();
+}
 
-// === Name ===
-QString Shape::getName() const{return name;}
-void Shape::setName(QString name){this->name=name;}
+qreal Shape::getRotation() const
+{
+    return QGraphicsItem::rotation();
+}
 
-// === Visible ===
-bool Shape::getVisible() const{return visible;}
-void Shape::changeVisibility(){visible=!visible;setVisible(visible);update();}
+void Shape::setRotation(qreal rotation)
+{
+    QGraphicsItem::setRotation(rotation);
+    update();
+}
 
-// === Layer ===
-int Shape::getLayer() const{return layer;}
-void Shape::setLayer(bool upper){
-    if(upper) layer = ++Layer;
-    else if(layer>0) layer--;
+Border Shape::getBorderInfo() const
+{
+    return border;
+}
+
+void Shape::setBorderInfo(Border border)
+{
+    if (this->border.borderWidth != border.borderWidth) {
+        prepareGeometryChange();
+    }
+    this->border = border;
+    update();
+}
+
+void Shape::setBorderInfo()
+{
+    prepareGeometryChange();
+    border = Border();
+    update();
+}
+
+FillStyle Shape::getFillInfo() const
+{
+    return fillStyle;
+}
+
+void Shape::setFillInfo()
+{
+    fillStyle = FillStyle();
+    update();
+}
+
+void Shape::setFillInfo(FillStyle fillStyle)
+{
+    this->fillStyle = fillStyle;
+    update();
+}
+
+TextStyle Shape::getTextInfo() const
+{
+    return textStyle;
+}
+
+void Shape::setTextInfo()
+{
+    textStyle = TextStyle();
+    update();
+}
+
+void Shape::setTextInfo(TextStyle textStyle)
+{
+    this->textStyle = textStyle;
+    update();
+}
+
+int Shape::getID() const
+{
+    return id;
+}
+
+QString Shape::getName() const
+{
+    return name;
+}
+
+void Shape::setName(QString name)
+{
+    this->name = name;
+}
+
+bool Shape::getVisible() const
+{
+    return visible;
+}
+
+void Shape::changeVisibility()
+{
+    visible = !visible;
+    setVisible(visible);
+    update();
+}
+
+int Shape::getLayer() const
+{
+    return layer;
+}
+
+void Shape::setLayer(bool upper)
+{
+    if (upper) {
+        layer = ++Layer;
+    } else if (layer > 0) {
+        --layer;
+    }
     setZValue(layer);
     update();
 }
-void Shape::setLayer(int layer){this->layer=layer;setZValue(layer);update();}
 
-// === Lock ===
-bool Shape::getLockStat() const{return lock_stat;}
-void Shape::changeLockStat(){
-    lock_stat=!lock_stat;
-    setFlag(ItemIsMovable,!lock_stat);
-    setFlag(ItemIsSelectable,!lock_stat);
+void Shape::setLayer(int layer)
+{
+    this->layer = layer;
+    setZValue(layer);
     update();
 }
 
-// === Constructor ===
-Shape::Shape(){setID();}
+bool Shape::getLockStat() const
+{
+    return lock_stat;
+}
+
+void Shape::changeLockStat()
+{
+    lock_stat = !lock_stat;
+    setFlag(ItemIsMovable, !lock_stat);
+    setFlag(ItemIsSelectable, !lock_stat);
+    update();
+}
+
 Shape::Shape(qreal x, qreal y, qreal width, qreal height)
-    : x(x), y(y), width(width), height(height){setID();}
-Shape::Shape(QPointF point,QSizeF size)
-    : x(point.x()), y(point.y()), width(size.width()), height(size.height()){setID();}
+    : width(width), height(height)
+{
+    setID();
+    setPos(x, y);
+}
+
+Shape::Shape(QPointF point, QSizeF size)
+    : width(size.width()), height(size.height())
+{
+    setID();
+    setPos(point);
+}

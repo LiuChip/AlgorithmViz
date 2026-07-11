@@ -1,29 +1,43 @@
 #include "text_label.h"
+
 #include <QFontMetricsF>
 
-TextLabel::TextLabel() : Shape() {}
-
 TextLabel::TextLabel(qreal x, qreal y, const QString &text)
-    : Shape()
+    : Shape(x, y, 0.0, 0.0)
 {
-    this->x = x;
-    this->y = y;
-    this->textStyle.text = text;
-    QSizeF size = calculateTextSize();
-    this->width = size.width();
-    this->height = size.height();
+    setText(text);
 }
 
 TextLabel::TextLabel(QPointF point, const QString &text)
-    : TextLabel(point.x(), point.y(), text) {}
+    : TextLabel(point.x(), point.y(), text)
+{
+}
+
+void TextLabel::refreshTextGeometry()
+{
+    prepareGeometryChange();
+    const QSizeF size = calculateTextSize();
+    width = size.width();
+    height = size.height();
+    update();
+}
 
 void TextLabel::setText(const QString &text)
 {
-    this->textStyle.text = text;
-    QSizeF size = calculateTextSize();
-    this->width = size.width();
-    this->height = size.height();
-    update();
+    textStyle.text = text;
+    refreshTextGeometry();
+}
+
+void TextLabel::setTextInfo(TextStyle textStyle)
+{
+    Shape::setTextInfo(textStyle);
+    refreshTextGeometry();
+}
+
+void TextLabel::setTextInfo()
+{
+    Shape::setTextInfo();
+    refreshTextGeometry();
 }
 
 QString TextLabel::getText() const
@@ -35,14 +49,15 @@ QSizeF TextLabel::calculateTextSize() const
 {
     QFont font(textStyle.fontFamily, textStyle.fontSize, textStyle.fontWeight);
     QFontMetricsF metrics(font);
-    qreal textWidth = metrics.horizontalAdvance(textStyle.text);
-    qreal textHeight = metrics.height();
+    const qreal textWidth = metrics.horizontalAdvance(textStyle.text);
+    const qreal textHeight = metrics.height();
     return QSizeF(textWidth + 10, textHeight + 6);
 }
 
 QRectF TextLabel::boundingRect() const
 {
-    return QRectF(0, 0, width, height);
+    qreal halfPen = border.borderWidth / 2.0;
+    return QRectF(-halfPen, -halfPen, width + border.borderWidth, height + border.borderWidth);
 }
 
 void TextLabel::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)

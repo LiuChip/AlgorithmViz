@@ -6,9 +6,7 @@
 class DiamondShape : public Shape
 {
 public:
-    DiamondShape();
-    DiamondShape(qreal x, qreal y, qreal width, qreal height);
-    DiamondShape(QPointF point, QSizeF size);
+    using Shape::Shape;
 
 protected:
     QRectF boundingRect() const override;

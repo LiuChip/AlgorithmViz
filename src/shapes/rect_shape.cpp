@@ -1,11 +1,5 @@
 #include "rect_shape.h"
 
-RectShape::RectShape() : Shape() {}
-RectShape::RectShape(qreal x, qreal y, qreal width, qreal height)
-    : Shape(x, y, width, height) {}
-RectShape::RectShape(QPointF point, QSizeF size)
-    : Shape(point, size) {}
-
 QRectF RectShape::boundingRect() const
 {
     qreal halfPen = border.borderWidth / 2.0;
@@ -19,7 +13,6 @@ void RectShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 
     QRectF rect(0, 0, width, height);
 
-    // Fill
     if (fillStyle.fillColor != Qt::transparent)
     {
         QColor fill = fillStyle.fillColor;
@@ -31,7 +24,6 @@ void RectShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
         painter->setBrush(Qt::NoBrush);
     }
 
-    // Border
     if (border.borderWidth > 0.0 && border.borderStyle != Qt::NoPen)
     {
         QPen pen(border.borderColor, border.borderWidth, border.borderStyle);
@@ -44,7 +36,6 @@ void RectShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 
     painter->drawRect(rect);
 
-    // Text
     if (!textStyle.text.isEmpty())
     {
         painter->setPen(textStyle.textColor);
