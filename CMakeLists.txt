@@ -49,6 +49,9 @@ add_executable(AlgorithmViz
     # === UI ===
     src/ui/main_window.cpp
     src/ui/main_window.h
+    src/shapes/line_shape.h
+    src/shapes/line_shape.cpp
+    src/shapes/dual_arrow_shape.h src/shapes/dual_arrow_shape.cpp
 )
 
 target_link_libraries(AlgorithmViz PRIVATE Qt6::Widgets Qt6::Core Qt6::Gui)
