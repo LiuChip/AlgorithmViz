@@ -1,9 +1,43 @@
 #include "diamond_shape.h"
 
+#include <cmath>
+
 QRectF DiamondShape::boundingRect() const
 {
     qreal halfPen = border.borderWidth / 2.0;
     return QRectF(-halfPen, -halfPen, width + border.borderWidth, height + border.borderWidth);
+}
+
+QPainterPath DiamondShape::localGeometryPath() const
+{
+    QPainterPath path;
+    QPolygonF diamond;
+    diamond << QPointF(width / 2.0, 0)
+            << QPointF(width, height / 2.0)
+            << QPointF(width / 2.0, height)
+            << QPointF(0, height / 2.0);
+    path.addPolygon(diamond);
+    path.closeSubpath();
+    return path;
+}
+
+QPointF DiamondShape::boundaryPointAtAngle(qreal angleRadians) const
+{
+    const QPointF center(width / 2.0, height / 2.0);
+    const qreal radiusX = width / 2.0;
+    const qreal radiusY = height / 2.0;
+    const qreal cosine = std::cos(angleRadians);
+    const qreal sine = std::sin(angleRadians);
+    const qreal denominator =
+        (radiusX > 0.0 ? std::abs(cosine) / radiusX : 0.0) +
+        (radiusY > 0.0 ? std::abs(sine) / radiusY : 0.0);
+
+    if (denominator <= 0.0) {
+        return center;
+    }
+
+    const qreal distance = 1.0 / denominator;
+    return center + QPointF(cosine * distance, sine * distance);
 }
 
 void DiamondShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
@@ -17,41 +51,16 @@ void DiamondShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
             << QPointF(width / 2.0, height)
             << QPointF(0, height / 2.0);
 
-    if (fillStyle.fillColor != Qt::transparent)
-    {
-        QColor fill = fillStyle.fillColor;
-        fill.setAlphaF(fillStyle.fillOpacity);
-        painter->setBrush(fill);
-    }
-    else
-    {
-        painter->setBrush(Qt::NoBrush);
-    }
-
-    if (border.borderWidth > 0.0 && border.borderStyle != Qt::NoPen)
-    {
-        QPen pen(border.borderColor, border.borderWidth, border.borderStyle);
-        painter->setPen(pen);
-    }
-    else
-    {
-        painter->setPen(Qt::NoPen);
-    }
+    applyFillStyle(painter);
+    applyBorderStyle(painter);
 
     painter->drawPolygon(diamond);
-
-    if (!textStyle.text.isEmpty())
-    {
-        painter->setPen(textStyle.textColor);
-        QFont font(textStyle.fontFamily, textStyle.fontSize, textStyle.fontWeight);
-        painter->setFont(font);
-        painter->drawText(QRectF(0, 0, width, height), textStyle.textAligh, textStyle.text);
-    }
+    drawText(painter, QRectF(0, 0, width, height));
 }
 
 Shape *DiamondShape::clone() const
 {
     auto *cloned = new DiamondShape(x(), y(), width, height);
-    this->copyPropertiesTo(cloned);
+    this->copyConnectablePropertiesTo(*cloned);
     return cloned;
 }
