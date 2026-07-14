@@ -20,3 +20,5 @@ AI_HANDOVER.md
 # OS
 .DS_Store
 Thumbs.db
+
+.cache/
