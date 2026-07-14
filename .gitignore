@@ -21,4 +21,4 @@ AI_HANDOVER.md
 .DS_Store
 Thumbs.db
 
-/.cache/*
+.cache/

@@ -45,3 +45,10 @@ void ArrowShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
     painter->setBrush(border.borderColor);
     painter->drawPolygon(head);
 }
+
+Shape *ArrowShape::clone() const
+{
+    auto *cloned = new ArrowShape(getStartPoint(), getEndPoint());
+    this->copyPropertiesTo(cloned);
+    return cloned;
+}

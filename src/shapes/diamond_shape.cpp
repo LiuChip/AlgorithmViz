@@ -48,3 +48,10 @@ void DiamondShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
         painter->drawText(QRectF(0, 0, width, height), textStyle.textAligh, textStyle.text);
     }
 }
+
+Shape *DiamondShape::clone() const
+{
+    auto *cloned = new DiamondShape(x(), y(), width, height);
+    this->copyPropertiesTo(cloned);
+    return cloned;
+}

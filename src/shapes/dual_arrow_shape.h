@@ -7,6 +7,7 @@ class DualArrowShape : public LineShape
 {
 public:
     using LineShape::LineShape;
+    Shape *clone() const override;
 
 protected:
     QRectF boundingRect() const override;

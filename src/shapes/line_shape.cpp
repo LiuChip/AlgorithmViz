@@ -59,5 +59,12 @@ void LineShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 
   const QPointF localStart = startPoint - pos();
   const QPointF localEnd = endPoint - pos();
-  painter->drawLine(localStart, localEnd);
+  painter->drawLine(startPoint, endPoint);
+}
+
+Shape *LineShape::clone() const
+{
+    auto *cloned = new LineShape(getStartPoint(), getEndPoint());
+    this->copyPropertiesTo(cloned);
+    return cloned;
 }

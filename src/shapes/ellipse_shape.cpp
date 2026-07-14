@@ -44,3 +44,10 @@ void EllipseShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
         painter->drawText(rect, textStyle.textAligh, textStyle.text);
     }
 }
+
+Shape *EllipseShape::clone() const
+{
+    auto *cloned = new EllipseShape(x(), y(), width, height);
+    this->copyPropertiesTo(cloned);
+    return cloned;
+}

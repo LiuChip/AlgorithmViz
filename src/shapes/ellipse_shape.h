@@ -7,6 +7,7 @@ class EllipseShape : public Shape
 {
 public:
     using Shape::Shape;
+    Shape *clone() const override;
 
 protected:
     QRectF boundingRect() const override;

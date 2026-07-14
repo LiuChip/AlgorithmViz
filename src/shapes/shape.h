@@ -66,6 +66,8 @@ protected:
 
   QVector<QPointF> anchorPoints;
 
+  void copyPropertiesTo(Shape *shape) const;
+
 private:
   void setID();
 
@@ -116,6 +118,8 @@ public:
   QRectF boundingRect() const override = 0;
   void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
              QWidget *widget) override = 0;
+
+  virtual Shape *clone() const = 0;
 };
 
 #endif // SHAPE_H

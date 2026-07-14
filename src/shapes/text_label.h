@@ -8,6 +8,7 @@ class TextLabel : public Shape
 public:
     TextLabel(qreal x, qreal y, const QString &text);
     TextLabel(QPointF point, const QString &text);
+    Shape *clone() const override;
 
     void setText(const QString &text);
     QString getText() const;

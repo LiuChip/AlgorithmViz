@@ -12,6 +12,7 @@ protected:
 
 public:
   LineShape(QPointF start, QPointF end);
+  Shape *clone() const override;
 
   QPointF getStartPoint() const;
   void setStartPoint(QPointF point);

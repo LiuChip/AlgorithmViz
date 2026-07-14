@@ -131,3 +131,20 @@ Shape::Shape(QPointF point, QSizeF size)
   setID();
   setPos(point);
 }
+
+void Shape::copyPropertiesTo(Shape *shape) const {
+  shape->width = this->width;
+  shape->height = this->height;
+  shape->border = this->border;
+  shape->fillStyle = this->fillStyle;
+  shape->textStyle = this->textStyle;
+  shape->name = this->name;
+  shape->visible = this->visible;
+  shape->layer = this->layer;
+  shape->lock_stat = this->lock_stat;
+  shape->setZValue(this->zValue());
+  shape->setVisible(this->visible);
+  shape->setRotation(this->rotation());
+  shape->setFlag(ItemIsMovable, !shape->lock_stat);
+  shape->setFlag(ItemIsSelectable, !shape->lock_stat);
+}

@@ -72,3 +72,10 @@ void TextLabel::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
     QRectF rect(0, 0, width, height);
     painter->drawText(rect, textStyle.textAligh, textStyle.text);
 }
+
+Shape *TextLabel::clone() const
+{
+    auto *cloned = new TextLabel(x(), y(), textStyle.text);
+    this->copyPropertiesTo(cloned);
+    return cloned;
+}

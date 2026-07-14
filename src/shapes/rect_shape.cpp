@@ -44,3 +44,10 @@ void RectShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
         painter->drawText(rect, textStyle.textAligh, textStyle.text);
     }
 }
+
+Shape *RectShape::clone() const
+{
+    auto *cloned = new RectShape(x(), y(), width, height);
+    this->copyPropertiesTo(cloned);
+    return cloned;
+}

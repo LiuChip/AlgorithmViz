@@ -50,3 +50,10 @@ void DualArrowShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *op
     painter->drawPolygon(startHead);
     painter->drawPolygon(endHead);
 }
+
+Shape *DualArrowShape::clone() const
+{
+    auto *cloned = new DualArrowShape(getStartPoint(), getEndPoint());
+    this->copyPropertiesTo(cloned);
+    return cloned;
+}
