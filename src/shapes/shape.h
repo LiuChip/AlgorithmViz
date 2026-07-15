@@ -3,7 +3,10 @@
 
 #include <QColor>
 #include <QFont>
+#include <QGraphicsObject>
+#if __has_include(<QGraphicsItem>)
 #include <QGraphicsItem>
+#endif
 #include <QPainter>
 #include <QPointF>
 #include <QSizeF>
@@ -63,7 +66,9 @@ struct TextStyle {
 };
 
 // 所有图形的抽象基类，负责公共属性、绘制样式、变换、锁定和克隆接口。
-class Shape : public QGraphicsItem {
+class Shape : public QGraphicsObject {
+  Q_OBJECT
+
 protected:
   static int IdVal;
   static int Layer;
@@ -118,10 +123,10 @@ public:
   QPointF getPosition() const;
 
   // 设置图形在父项/场景坐标系中的位置；锁定时忽略请求。
-  void setPosition(QPointF point);
+  virtual void setPosition(QPointF point);
 
   // 使用 x、y 设置图形位置；锁定时忽略请求。
-  void setPosition(qreal x, qreal y);
+  virtual void setPosition(qreal x, qreal y);
 
   // 返回图形的逻辑尺寸，不包含旋转和缩放影响。
   QSizeF getSize() const;
@@ -136,10 +141,10 @@ public:
   qreal getRotation() const;
 
   // 设置图形旋转角度；锁定时忽略请求。
-  void setRotation(qreal rotation);
+  virtual void setRotation(qreal rotation);
 
   // 设置图形缩放比例；锁定时忽略请求。
-  void setScale(qreal scale);
+  virtual void setScale(qreal scale);
 
   // 返回当前边框样式。
   Border getBorderInfo() const;
@@ -216,6 +221,10 @@ public:
 
   // 创建当前图形的深拷贝，并为副本分配新的 ID。
   virtual Shape *clone() const = 0;
+
+signals:
+  // 当图形的位置、尺寸、旋转或几何形状发生变化时发出此信号。
+  void geometryChanged();
 };
 
 #endif // SHAPE_H

@@ -48,7 +48,21 @@ public:
   // 使用 x、y 场景坐标设置终点。
   void setEndPoint(qreal x, qreal y);
 
+  // 一次性同时设置起点和终点，仅触发一次几何重计算与通知。
+  void setEndpoints(QPointF start, QPointF end);
+
+  // 屏蔽虚函数 setSize，线段的宽高仅作为端点的派生结果，禁止直接修改。
+  void setSize(QSizeF size) override;
+  void setSize(qreal width, qreal height) override;
+
+  // 屏蔽旋转与缩放，线段的方向与长短完全由两个端点主宰。
+  void setRotation(qreal rotation) override;
+  void setScale(qreal scale) override;
+
 protected:
+  // 屏蔽外来通过鼠标或手柄造成的非法旋转缩放
+  QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
+
   // 返回包含线宽和最小命中区域的包围盒。
   QRectF boundingRect() const override;
 

@@ -30,6 +30,7 @@ void Shape::setSize(qreal width, qreal height) {
   this->width = width;
   this->height = height;
   update();
+  emit geometryChanged();
 }
 
 qreal Shape::getRotation() const { return QGraphicsItem::rotation(); }
@@ -53,17 +54,22 @@ void Shape::setScale(qreal scale) {
 Border Shape::getBorderInfo() const { return border; }
 
 void Shape::setBorderInfo(Border border) {
-  if (this->border.borderWidth != border.borderWidth) {
+  bool changed = (this->border.borderWidth != border.borderWidth);
+  if (changed) {
     prepareGeometryChange();
   }
   this->border = border;
   update();
+  if (changed) {
+    emit geometryChanged();
+  }
 }
 
 void Shape::setBorderInfo() {
   prepareGeometryChange();
   border = Border();
   update();
+  emit geometryChanged();
 }
 
 FillStyle Shape::getFillInfo() const { return fillStyle; }
@@ -174,7 +180,20 @@ QVariant Shape::itemChange(GraphicsItemChange change, const QVariant &value) {
     }
   }
 
-  return QGraphicsItem::itemChange(change, value);
+  // 如果图形的位置变化、旋转变化或变换完成，通知所关联的连接线或观察者。
+  switch (change) {
+  case ItemPositionHasChanged:
+  case ItemRotationHasChanged:
+  case ItemScaleHasChanged:
+  case ItemTransformHasChanged:
+  case ItemTransformOriginPointHasChanged:
+    emit geometryChanged();
+    break;
+  default:
+    break;
+  }
+
+  return QGraphicsObject::itemChange(change, value);
 }
 
 void Shape::copyPropertiesTo(Shape &shape) const {

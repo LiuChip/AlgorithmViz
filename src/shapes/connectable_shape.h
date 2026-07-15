@@ -77,6 +77,7 @@ public:
   // 返回用于 QGraphicsItem 命中和选中的实际路径。
   QPainterPath shape() const override;
 
+
 };
 
 #endif // CONNECTABLE_SHAPE_H

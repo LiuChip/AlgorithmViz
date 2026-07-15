@@ -13,18 +13,12 @@ void LineShape::syncGeometry(QPointF sceneStart, QPointF sceneEnd,
     return;
   }
 
-  // Convert the public scene coordinates into the current item coordinate
-  // system first. This keeps endpoint setters correct even after the item has
-  // been moved, rotated, scaled, or given a custom transform.
   const QPointF localStart = mapFromScene(sceneStart);
   const QPointF localEnd = mapFromScene(sceneEnd);
   const QRectF localRect(localStart, localEnd);
   const QRectF normalized = localRect.normalized();
   const QPointF localOrigin = normalized.topLeft();
 
-  // Moving the local origin to (0, 0) changes the item-local coordinates. Move
-  // the item by the corresponding parent-space delta so the actual scene
-  // endpoints remain exactly at sceneStart and sceneEnd.
   const QPointF parentZero = mapToParent(QPointF(0, 0));
   const QPointF parentOrigin = mapToParent(localOrigin);
 
@@ -32,12 +26,23 @@ void LineShape::syncGeometry(QPointF sceneStart, QPointF sceneEnd,
     prepareGeometryChange();
   }
 
+  // 临时阻止内部 itemChange 提前多余地广播未完成的半途信号
+  bool wasSending = flags() & ItemSendsGeometryChanges;
+  if (wasSending) setFlag(ItemSendsGeometryChanges, false);
+
   setPos(pos() + parentOrigin - parentZero);
   startPoint = localStart - localOrigin;
   endPoint = localEnd - localOrigin;
   width = normalized.width();
   height = normalized.height();
   update();
+
+  if (wasSending) setFlag(ItemSendsGeometryChanges, true);
+
+  // 当一切端点和新外框尺寸彻底安顿完毕，只在这里干净利落发唯一一次正式通知！
+  if (notify) {
+    emit geometryChanged();
+  }
 }
 
 QPainterPath LineShape::localGeometryPath() const {
@@ -62,7 +67,7 @@ QPointF LineShape::boundaryPointAtAngle(qreal angleRadians) const {
 QPointF LineShape::getStartPoint() const { return mapToScene(startPoint); }
 
 void LineShape::setStartPoint(QPointF point) {
-  syncGeometry(point, getEndPoint());
+  syncGeometry(point, getEndPoint(), true);
 }
 
 void LineShape::setStartPoint(qreal x, qreal y) {
@@ -72,10 +77,23 @@ void LineShape::setStartPoint(qreal x, qreal y) {
 QPointF LineShape::getEndPoint() const { return mapToScene(endPoint); }
 
 void LineShape::setEndPoint(QPointF point) {
-  syncGeometry(getStartPoint(), point);
+  syncGeometry(getStartPoint(), point, true);
 }
 
 void LineShape::setEndPoint(qreal x, qreal y) { setEndPoint(QPointF(x, y)); }
+
+void LineShape::setEndpoints(QPointF start, QPointF end) {
+  syncGeometry(start, end, true);
+}
+
+void LineShape::setSize(QSizeF size) { Q_UNUSED(size); }
+void LineShape::setSize(qreal width, qreal height) {
+  Q_UNUSED(width);
+  Q_UNUSED(height);
+}
+
+void LineShape::setRotation(qreal rotation) { Q_UNUSED(rotation); }
+void LineShape::setScale(qreal scale) { Q_UNUSED(scale); }
 
 void LineShape::copyLineGeometryTo(LineShape &shape) const {
   shape.startPoint = startPoint;
@@ -98,6 +116,17 @@ void LineShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 
   applyBorderStyle(painter);
   painter->drawLine(startPoint, endPoint);
+}
+
+QVariant LineShape::itemChange(GraphicsItemChange change, const QVariant &value) {
+  // 禁止对本线段进行任何额外的旋转与缩放或者复合变换，形状完全由两头点操控
+  if (change == ItemRotationChange || change == ItemScaleChange ||
+      change == ItemTransformChange) {
+    if (change == ItemRotationChange) return 0.0;
+    if (change == ItemScaleChange) return 1.0;
+    if (change == ItemTransformChange) return QTransform();
+  }
+  return ConnectableShape::itemChange(change, value);
 }
 
 Shape *LineShape::clone() const {

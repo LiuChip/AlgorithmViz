@@ -29,6 +29,7 @@ void TextLabel::refreshTextGeometry() {
   width = size.width();
   height = size.height();
   update();
+  emit geometryChanged();
 }
 
 void TextLabel::setText(const QString &text) {
