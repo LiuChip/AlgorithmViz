@@ -12,6 +12,12 @@ public:
   // 创建当前双箭头的深拷贝。
   Shape *clone() const override;
 
+  // 返回包含线段和两端箭头的几何可视化路径
+  QPainterPath visualPath() const;
+
+  // 返回实际可命中区域路径
+  QPainterPath shape() const override;
+
 protected:
   // 返回覆盖线段和两端箭头头部的包围盒。
   QRectF boundingRect() const override;

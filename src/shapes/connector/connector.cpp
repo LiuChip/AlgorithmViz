@@ -21,53 +21,58 @@ Connector::Connector(QPointF startScenePt, QPointF endScenePt)
 }
 
 void Connector::degradeStartAnchorToFree() {
-    if (startAnchor.mode != ConnectorAnchor::Mode::Free) {
-        startAnchor.freeScenePoint = startAnchor.fallbackScenePoint;
-        startAnchor.mode = ConnectorAnchor::Mode::Free;
-        startAnchor.targetShape = nullptr;
+    if (startAnchor.mode() != ConnectorAnchor::Mode::Free) {
+        startAnchor.degradeToFree();
     }
 }
 
 void Connector::degradeEndAnchorToFree() {
-    if (endAnchor.mode != ConnectorAnchor::Mode::Free) {
-        endAnchor.freeScenePoint = endAnchor.fallbackScenePoint;
-        endAnchor.mode = ConnectorAnchor::Mode::Free;
-        endAnchor.targetShape = nullptr;
+    if (endAnchor.mode() != ConnectorAnchor::Mode::Free) {
+        endAnchor.degradeToFree();
     }
+}
+
+bool Connector::degradeStartAnchorToFreeIfUnlocked() {
+    if (isLocked()) return false;
+    degradeStartAnchorToFree();
+    refreshGeometry();
+    return true;
+}
+
+bool Connector::degradeEndAnchorToFreeIfUnlocked() {
+    if (isLocked()) return false;
+    degradeEndAnchorToFree();
+    refreshGeometry();
+    return true;
 }
 
 void Connector::refreshGeometry() {
     // 1. 通知底层渲染引擎刷新外接方框，避免线条在拖动或缩放时出现残留重绘阴影
     prepareGeometryChange();
 
-    // 2. 调用端点探头算出全局最新物理点
+    // 2. 将两端解析为实际的场景物理坐标
     startPoint = startAnchor.resolveScenePoint();
     endPoint = endAnchor.resolveScenePoint();
 
-    // 3. 算出基本长宽并更新
-    QRectF rect(startPoint, endPoint);
-    this->width = rect.normalized().width();
-    this->height = rect.normalized().height();
-
-    // 4. 重画自身并对外发出几何变更信号
+    // 3. 及时触发界面的实际重制渲染动作，同时发射几何变动信号给外部系统
     update();
     emit geometryChanged();
 }
 
 void Connector::rebuildTargetConnections() {
-    // 1. 把先前挂载在本对象保存的所有旧信号句柄一次性干干净净断掉
+    // 1. 首先彻底清空此前挂载到旧图形上的监听事件
     for (const auto& conn : targetConnections) {
         disconnect(conn);
     }
     targetConnections.clear();
 
-    // 2. 收集现在起点和终点绑定的有效目标对象并做精准去重
+    // 2. 针对起点和终点的实际非空目标进行去重收集
     QSet<ConnectableShape*> targets;
-    if (startAnchor.targetShape && startAnchor.mode != ConnectorAnchor::Mode::Free) {
-        targets.insert(startAnchor.targetShape);
+    if (startAnchor.targetShape() && startAnchor.mode() != ConnectorAnchor::Mode::Free) {
+        targets.insert(startAnchor.targetShape());
     }
-    if (endAnchor.targetShape && endAnchor.mode != ConnectorAnchor::Mode::Free) {
-        targets.insert(endAnchor.targetShape);
+    if (endAnchor.targetShape() && endAnchor.mode() != ConnectorAnchor::Mode::Free) {
+        targets.insert(endAnchor.targetShape());
     }
 
     // 3. 对每一个去重后的有效目标，挂载唯一一次几何变化与销毁处理，防止双绑定销毁时重复刷新并消除未使用捕获
@@ -78,19 +83,19 @@ void Connector::rebuildTargetConnections() {
         );
 
         // 记录在挂载本次连接瞬间，起点和终点分别是否绑定在该 target 上
-        bool boundStart = (startAnchor.mode != ConnectorAnchor::Mode::Free && startAnchor.targetShape.data() == target);
-        bool boundEnd = (endAnchor.mode != ConnectorAnchor::Mode::Free && endAnchor.targetShape.data() == target);
+        bool boundStart = (startAnchor.mode() != ConnectorAnchor::Mode::Free && startAnchor.targetShape() == target);
+        bool boundEnd = (endAnchor.mode() != ConnectorAnchor::Mode::Free && endAnchor.targetShape() == target);
 
         targetConnections.append(
             connect(target, &QObject::destroyed, this, [this, boundStart, boundEnd](QObject* dyingObj) {
                 bool degraded = false;
                 // 检查起点：如果挂载时起点绑定在本目标上，且目前尚未改绑为其它非空对象
-                if (boundStart && (startAnchor.targetShape == dyingObj || startAnchor.targetShape.isNull())) {
+                if (boundStart && (startAnchor.targetShape() == dyingObj || startAnchor.targetShape() == nullptr)) {
                     degradeStartAnchorToFree();
                     degraded = true;
                 }
                 // 检查终点：如果挂载时终点绑定在本目标上，且目前尚未改绑为其它非空对象
-                if (boundEnd && (endAnchor.targetShape == dyingObj || endAnchor.targetShape.isNull())) {
+                if (boundEnd && (endAnchor.targetShape() == dyingObj || endAnchor.targetShape() == nullptr)) {
                     degradeEndAnchorToFree();
                     degraded = true;
                 }
@@ -108,12 +113,14 @@ void Connector::onTargetGeometryChanged() {
 }
 
 void Connector::setStartAnchor(const ConnectorAnchor& anchor) {
+    if (isLocked()) return; // 锁定状态下禁止用户主动修改端点
     startAnchor = anchor;
     rebuildTargetConnections();
     refreshGeometry();
 }
 
 void Connector::setEndAnchor(const ConnectorAnchor& anchor) {
+    if (isLocked()) return; // 锁定状态下禁止用户主动修改端点
     endAnchor = anchor;
     rebuildTargetConnections();
     refreshGeometry();
@@ -128,6 +135,23 @@ void Connector::setEndStyle(EndStyle style) {
     }
 }
 
+bool Connector::setBorderInfo(Border newBorder) {
+    if (!std::isfinite(newBorder.borderWidth) || newBorder.borderWidth < 0.0) {
+        return false;
+    }
+    bool geomChanged = (this->border.borderWidth != newBorder.borderWidth) ||
+                       (this->border.borderStyle != newBorder.borderStyle);
+    if (geomChanged) {
+        prepareGeometryChange();
+    }
+    this->border = newBorder;
+    update();
+    if (geomChanged) {
+        emit geometryChanged();
+    }
+    return true;
+}
+
 void Connector::setLocked(bool locked) {
     Shape::setLocked(locked);
     // 强制无论如何切换锁定/解锁，Connector 本身绝对不允许通过 QGraphicsItem 被拖拽移动
@@ -138,7 +162,8 @@ void Connector::setLocked(bool locked) {
 QPainterPath Connector::visualPath() const {
     QPainterPath path = localGeometryPath();
 
-    if (endStyle == EndStyle::Arrow && startPoint != endPoint) {
+    if (endStyle == EndStyle::Arrow && startPoint != endPoint &&
+        border.borderWidth > 0.0 && border.borderStyle != Qt::NoPen) {
         qreal angle = std::atan2(endPoint.y() - startPoint.y(), endPoint.x() - startPoint.x());
         qreal arrowSize = qMax<qreal>(10.0, border.borderWidth * 3.0);
         qreal angleOffset = kPi / 6.0; // 30 度角
@@ -187,7 +212,8 @@ void Connector::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
     painter->drawLine(startPoint, endPoint);
 
     // 2. 如果是箭头样式，填充底纹画出箭头三角形
-    if (endStyle == EndStyle::Arrow && startPoint != endPoint) {
+    if (endStyle == EndStyle::Arrow && startPoint != endPoint &&
+        border.borderWidth > 0.0 && border.borderStyle != Qt::NoPen) {
         qreal angle = std::atan2(endPoint.y() - startPoint.y(), endPoint.x() - startPoint.x());
         qreal arrowSize = qMax<qreal>(10.0, border.borderWidth * 3.0);
         qreal angleOffset = kPi / 6.0;

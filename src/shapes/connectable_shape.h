@@ -16,6 +16,26 @@ public:
       InteriorNormalized,
     };
 
+    AnchorSpec() = default;
+
+    // 创建一个按中心角度保存的边界锚点。
+    static AnchorSpec createAnchor(qreal angleRadians);
+
+    // 创建一个按归一化坐标保存的内部锚点。
+    static AnchorSpec createAnchor(QPointF normalizedPosition);
+
+    // 返回当前锚点的类型。
+    Type getType() const { return type; }
+    bool isBoundary() const { return type == Type::BoundaryAngle; }
+    bool isInterior() const { return type == Type::InteriorNormalized; }
+
+    // 读取边界锚点角度；如果当前不是边界锚点则返回 0。
+    qreal boundaryAngle() const;
+
+    // 读取内部锚点归一化坐标；如果当前不是内部锚点则返回空点。
+    QPointF interiorPosition() const;
+
+  private:
     // 内部锚点的归一化坐标，x 和 y 的有效范围通常为 [0, 1]。
     struct InteriorValue {
       qreal x;
@@ -34,17 +54,7 @@ public:
       constexpr Value() : boundaryAngle(0.0) {}
     } value;
 
-    // 创建一个按中心角度保存的边界锚点。
-    static AnchorSpec createAnchor(qreal angleRadians);
-
-    // 创建一个按归一化坐标保存的内部锚点。
-    static AnchorSpec createAnchor(QPointF normalizedPosition);
-
-    // 读取边界锚点角度；如果当前不是边界锚点则返回 0。
-    qreal boundaryAngle() const;
-
-    // 读取内部锚点归一化坐标；如果当前不是内部锚点则返回空点。
-    QPointF interiorPosition() const;
+    friend class ConnectableShape;
   };
 
 protected:
@@ -77,7 +87,8 @@ public:
   // 返回用于 QGraphicsItem 命中和选中的实际路径。
   QPainterPath shape() const override;
 
-
+  // 是否允许作为连接线的吸附目标。闭合图形默认为 true，线段类重载返回 false。
+  virtual bool isConnectableTarget() const { return true; }
 };
 
 #endif // CONNECTABLE_SHAPE_H

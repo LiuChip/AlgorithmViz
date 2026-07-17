@@ -56,17 +56,26 @@ void TextLabel::setTextLayoutMode(TextLayoutMode mode) {
   }
 }
 
-void TextLabel::setSize(QSizeF size) {
-  setSize(size.width(), size.height());
+bool TextLabel::setSize(QSizeF size) {
+  return setSize(size.width(), size.height());
 }
 
-void TextLabel::setSize(qreal width, qreal height) {
-  if (getLockStat()) {
-    return;
+bool TextLabel::setSize(qreal width, qreal height) {
+  if (getLockStat() || !std::isfinite(width) || !std::isfinite(height) || width < 0.0 || height < 0.0) {
+    return false;
+  }
+  bool modeChanged = (textLayoutMode != TextLayoutMode::FixedSize);
+  textLayoutMode = TextLayoutMode::FixedSize;
+
+  if (this->width == width && this->height == height) {
+    if (modeChanged) {
+      update();
+      return true;
+    }
+    return false;
   }
 
-  textLayoutMode = TextLayoutMode::FixedSize;
-  Shape::setSize(width, height);
+  return Shape::setSize(width, height);
 }
 
 void TextLabel::setTextInfo(TextStyle textStyle) {
@@ -100,7 +109,7 @@ QSizeF TextLabel::calculateTextSize() const {
 
   const qsizetype lineCount = std::max<qsizetype>(1, lines.size());
   return QSizeF(longestLine + horizontalPadding,
-                metrics.lineSpacing() * lineCount + verticalPadding);
+                metrics.lineSpacing() * static_cast<qreal>(lineCount) + verticalPadding);
 }
 
 QRectF TextLabel::boundingRect() const {

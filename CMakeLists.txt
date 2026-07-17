@@ -22,6 +22,8 @@ add_library(algorithmviz_core STATIC
     src/core/shape_controller/canvas_controller.h
     src/core/shape_controller/connector_controller.cpp
     src/core/shape_controller/connector_controller.h
+    src/core/shape_controller/anchor_resolver.cpp
+    src/core/shape_controller/anchor_resolver.h
 
     # === Shapes ===
     src/shapes/shape.cpp
@@ -73,3 +75,4 @@ enable_testing()
 add_executable(connector_test tests/connector_test.cpp)
 target_link_libraries(connector_test PRIVATE algorithmviz_core Qt6::Test)
 add_test(NAME ConnectorTest COMMAND connector_test)
+target_include_directories(algorithmviz_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)

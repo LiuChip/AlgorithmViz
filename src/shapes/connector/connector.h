@@ -22,9 +22,9 @@ public:
     ConnectorAnchor getStartAnchor() const { return startAnchor; }
     ConnectorAnchor getEndAnchor() const { return endAnchor; }
 
-    // 显式将两端降级为 Free 模式的方法（安全自愈核心接口）
-    void degradeStartAnchorToFree();
-    void degradeEndAnchorToFree();
+    // 显式将两端降级为 Free 模式（面向控制器的公开接口，遵守锁定语义）
+    bool degradeStartAnchorToFreeIfUnlocked();
+    bool degradeEndAnchorToFreeIfUnlocked();
 
     void setEndStyle(EndStyle style);
     EndStyle getEndStyle() const { return endStyle; }
@@ -39,11 +39,16 @@ public:
     QPainterPath shape() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
-    // 保护措施：禁用外部直接针对图形本身的宽高、旋转与缩放设置
-    void setSize(QSizeF size) override { Q_UNUSED(size); }
-    void setSize(qreal width, qreal height) override { Q_UNUSED(width); Q_UNUSED(height); }
-    void setRotation(qreal rotation) override { Q_UNUSED(rotation); }
-    void setScale(qreal scale) override { Q_UNUSED(scale); }
+    // 保护措施：禁用外部直接针对图形本身的位置、宽高、旋转与缩放设置并返回 false
+    bool setPosition(QPointF point) override { Q_UNUSED(point); return false; }
+    bool setPosition(qreal x, qreal y) override { Q_UNUSED(x); Q_UNUSED(y); return false; }
+    bool setSize(QSizeF size) override { Q_UNUSED(size); return false; }
+    bool setSize(qreal width, qreal height) override { Q_UNUSED(width); Q_UNUSED(height); return false; }
+    bool setRotation(qreal rotation) override { Q_UNUSED(rotation); return false; }
+    bool setScale(qreal scale) override { Q_UNUSED(scale); return false; }
+
+    bool setBorderInfo(Border newBorder) override;
+    bool setBorderInfo() override { return Shape::setBorderInfo(); }
 
 private:
     // 1. 保存端点的锚点信息，供 UI/控制层调用 setStartAnchor/setEndAnchor 接口时使用
@@ -62,6 +67,9 @@ private:
 
     // 核心私有辅助：统一对各个目标图形重新建连（完美去重，且各自专属响应被销毁监听）
     void rebuildTargetConnections();
+    // 内部自愈降级接口（面向目标销毁回调，无视锁定状态）
+    void degradeStartAnchorToFree();
+    void degradeEndAnchorToFree();
     // 核心私有同步：解析两端并重新算自己的外接矩形
     void refreshGeometry();
     // 核心骨架生成：把主线与箭头构造成统一路径（保证包围盒与点击不被切裁）

@@ -1,5 +1,6 @@
 #include "connectable_shape.h"
 
+#include <cmath>
 #include <QLineF>
 #include <QPainterPathStroker>
 #include <QtMath>
@@ -8,7 +9,7 @@ ConnectableShape::AnchorSpec ConnectableShape::AnchorSpec::createAnchor(
     qreal angleRadians) {
   AnchorSpec anchor;
   anchor.type = Type::BoundaryAngle;
-  anchor.value.boundaryAngle = angleRadians;
+  anchor.value.boundaryAngle = std::isfinite(angleRadians) ? angleRadians : 0.0;
   return anchor;
 }
 
@@ -16,8 +17,10 @@ ConnectableShape::AnchorSpec ConnectableShape::AnchorSpec::createAnchor(
     QPointF normalizedPosition) {
   AnchorSpec anchor;
   anchor.type = Type::InteriorNormalized;
-  anchor.value.interiorPosition.x = normalizedPosition.x();
-  anchor.value.interiorPosition.y = normalizedPosition.y();
+  qreal x = std::isfinite(normalizedPosition.x()) ? normalizedPosition.x() : 0.5;
+  qreal y = std::isfinite(normalizedPosition.y()) ? normalizedPosition.y() : 0.5;
+  anchor.value.interiorPosition.x = std::max<qreal>(0.0, std::min<qreal>(1.0, x));
+  anchor.value.interiorPosition.y = std::max<qreal>(0.0, std::min<qreal>(1.0, y));
   return anchor;
 }
 
@@ -45,7 +48,22 @@ ConnectableShape::getAnchorPoints() const {
 
 void ConnectableShape::setAnchorPoints(
     const QVector<AnchorSpec> &anchors) {
-  anchorPoints = anchors;
+  QVector<AnchorSpec> validAnchors;
+  validAnchors.reserve(anchors.size());
+  for (const auto &anchor : anchors) {
+    if (anchor.getType() == AnchorSpec::Type::BoundaryAngle) {
+      if (std::isfinite(anchor.boundaryAngle())) {
+        validAnchors.append(anchor);
+      }
+    } else if (anchor.getType() == AnchorSpec::Type::InteriorNormalized) {
+      QPointF pt = anchor.interiorPosition();
+      if (std::isfinite(pt.x()) && std::isfinite(pt.y()) &&
+          pt.x() >= 0.0 && pt.x() <= 1.0 && pt.y() >= 0.0 && pt.y() <= 1.0) {
+        validAnchors.append(anchor);
+      }
+    }
+  }
+  anchorPoints = validAnchors;
   update();
 }
 

@@ -30,6 +30,9 @@ public:
   // 线段不是闭合节点，此函数仅提供兼容性的方向端点选择。
   QPointF boundaryPointAtAngle(qreal angleRadians) const override;
 
+  // 普通线段及箭头不作为连接线的吸附目标。
+  bool isConnectableTarget() const override { return false; }
+
   // 返回起点的场景坐标。
   QPointF getStartPoint() const;
 
@@ -51,13 +54,13 @@ public:
   // 一次性同时设置起点和终点，仅触发一次几何重计算与通知。
   void setEndpoints(QPointF start, QPointF end);
 
-  // 屏蔽虚函数 setSize，线段的宽高仅作为端点的派生结果，禁止直接修改。
-  void setSize(QSizeF size) override;
-  void setSize(qreal width, qreal height) override;
+  // 屏蔽虚函数 setSize，线段的宽高仅作为端点的派生结果，禁止直接修改并返回 false。
+  bool setSize(QSizeF size) override;
+  bool setSize(qreal width, qreal height) override;
 
-  // 屏蔽旋转与缩放，线段的方向与长短完全由两个端点主宰。
-  void setRotation(qreal rotation) override;
-  void setScale(qreal scale) override;
+  // 屏蔽旋转与缩放，线段的方向与长短完全由两个端点主宰并返回 false。
+  bool setRotation(qreal rotation) override;
+  bool setScale(qreal scale) override;
 
 protected:
   // 屏蔽外来通过鼠标或手柄造成的非法旋转缩放

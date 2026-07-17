@@ -82,7 +82,6 @@ protected:
 
   int id = -1;
   QString name = "";
-  bool visible = true;
   int layer = 0;
   bool lock_stat = false;
 
@@ -111,7 +110,7 @@ public:
   Shape() = delete;
 
   // 创建位于 (x, y)、尺寸为 width x height 的图形。
-  Shape(qreal x, qreal y, qreal width, qreal height);
+  Shape(qreal x, qreal y, qreal initialWidth, qreal initialHeight);
 
   // 创建位于 point、尺寸为 size 的图形。
   Shape(QPointF point, QSizeF size);
@@ -122,47 +121,47 @@ public:
   // 返回图形在父项/场景坐标系中的位置。
   QPointF getPosition() const;
 
-  // 设置图形在父项/场景坐标系中的位置；锁定时忽略请求。
-  virtual void setPosition(QPointF point);
+  // 设置图形在父项/场景坐标系中的位置；锁定时或数值非法时忽略请求并返回 false。
+  virtual bool setPosition(QPointF point);
 
-  // 使用 x、y 设置图形位置；锁定时忽略请求。
-  virtual void setPosition(qreal x, qreal y);
+  // 使用 x、y 设置图形位置；锁定时或数值非法时忽略请求并返回 false。
+  virtual bool setPosition(qreal x, qreal y);
 
   // 返回图形的逻辑尺寸，不包含旋转和缩放影响。
   QSizeF getSize() const;
 
   // 设置图形尺寸；具体子类可以重载以实现特殊尺寸逻辑。
-  virtual void setSize(QSizeF size);
+  virtual bool setSize(QSizeF size);
 
   // 使用 width、height 设置图形尺寸。
-  virtual void setSize(qreal width, qreal height);
+  virtual bool setSize(qreal newWidth, qreal newHeight);
 
   // 返回图形的旋转角度。
   qreal getRotation() const;
 
-  // 设置图形旋转角度；锁定时忽略请求。
-  virtual void setRotation(qreal rotation);
+  // 设置图形旋转角度；锁定时或数值非法时忽略请求并返回 false。
+  virtual bool setRotation(qreal rotation);
 
-  // 设置图形缩放比例；锁定时忽略请求。
-  virtual void setScale(qreal scale);
+  // 设置图形缩放比例；锁定时或数值非法（如正负无穷、NaN 或 <=0）时忽略请求并返回 false。
+  virtual bool setScale(qreal scale);
 
   // 返回当前边框样式。
   Border getBorderInfo() const;
 
   // 设置边框样式，并在边框宽度变化时通知 Qt 更新几何区域。
-  virtual void setBorderInfo(Border borderStyle);
+  virtual bool setBorderInfo(Border newBorder);
 
   // 将边框恢复为默认的无边框样式。
-  virtual void setBorderInfo();
+  virtual bool setBorderInfo();
 
   // 返回当前填充样式。
   FillStyle getFillInfo() const;
 
   // 将填充恢复为默认的透明填充。
-  virtual void setFillInfo();
+  virtual bool setFillInfo();
 
   // 设置填充样式。
-  virtual void setFillInfo(FillStyle fillStyle);
+  virtual bool setFillInfo(FillStyle newFillStyle);
 
   // 返回当前文本样式。
   TextStyle getTextInfo() const;
@@ -171,7 +170,7 @@ public:
   virtual void setTextInfo();
 
   // 设置文本样式。
-  virtual void setTextInfo(TextStyle textStyle);
+  virtual void setTextInfo(TextStyle newTextStyle);
 
   // 返回对象的唯一 ID。
   int getID() const;
@@ -180,7 +179,7 @@ public:
   QString getName() const;
 
   // 设置对象名称。
-  void setName(QString name = "");
+  void setName(QString newName = "");
 
   // 返回图形当前是否可见。
   bool getVisible() const;
@@ -195,7 +194,7 @@ public:
   void setLayer(bool upper = true);
 
   // 直接设置图形图层值。
-  void setLayer(int layer);
+  void setLayer(int newLayer);
 
   // 返回旧接口名称对应的锁定状态。
   bool getLockStat() const;

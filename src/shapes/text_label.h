@@ -36,11 +36,11 @@ public:
   // 设置文本布局模式，并在需要时重新计算尺寸。
   void setTextLayoutMode(TextLayoutMode mode);
 
-  // 设置文本框尺寸，同时切换到 FixedSize 模式。
-  void setSize(QSizeF size) override;
+  // 设置文本框尺寸；数值有效时同时切换到 FixedSize 模式。
+  bool setSize(QSizeF size) override;
 
-  // 设置文本框宽高，同时切换到 FixedSize 模式。
-  void setSize(qreal width, qreal height) override;
+  // 设置文本框宽高；数值有效时同时切换到 FixedSize 模式。
+  bool setSize(qreal width, qreal height) override;
 
   // 设置文本样式，并在 AutoSize 模式下重新计算尺寸。
   void setTextInfo(TextStyle textStyle) override;

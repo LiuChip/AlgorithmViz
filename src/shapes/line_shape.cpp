@@ -9,7 +9,8 @@ LineShape::LineShape(QPointF start, QPointF end)
 
 void LineShape::syncGeometry(QPointF sceneStart, QPointF sceneEnd,
                              bool notify) {
-  if (lock_stat) {
+  if (lock_stat || !std::isfinite(sceneStart.x()) || !std::isfinite(sceneStart.y()) ||
+      !std::isfinite(sceneEnd.x()) || !std::isfinite(sceneEnd.y())) {
     return;
   }
 
@@ -67,6 +68,7 @@ QPointF LineShape::boundaryPointAtAngle(qreal angleRadians) const {
 QPointF LineShape::getStartPoint() const { return mapToScene(startPoint); }
 
 void LineShape::setStartPoint(QPointF point) {
+  if (!std::isfinite(point.x()) || !std::isfinite(point.y())) return;
   syncGeometry(point, getEndPoint(), true);
 }
 
@@ -77,23 +79,26 @@ void LineShape::setStartPoint(qreal x, qreal y) {
 QPointF LineShape::getEndPoint() const { return mapToScene(endPoint); }
 
 void LineShape::setEndPoint(QPointF point) {
+  if (!std::isfinite(point.x()) || !std::isfinite(point.y())) return;
   syncGeometry(getStartPoint(), point, true);
 }
 
 void LineShape::setEndPoint(qreal x, qreal y) { setEndPoint(QPointF(x, y)); }
 
 void LineShape::setEndpoints(QPointF start, QPointF end) {
+  if (!std::isfinite(start.x()) || !std::isfinite(start.y()) || !std::isfinite(end.x()) || !std::isfinite(end.y())) return;
   syncGeometry(start, end, true);
 }
 
-void LineShape::setSize(QSizeF size) { Q_UNUSED(size); }
-void LineShape::setSize(qreal width, qreal height) {
+bool LineShape::setSize(QSizeF size) { Q_UNUSED(size); return false; }
+bool LineShape::setSize(qreal width, qreal height) {
   Q_UNUSED(width);
   Q_UNUSED(height);
+  return false;
 }
 
-void LineShape::setRotation(qreal rotation) { Q_UNUSED(rotation); }
-void LineShape::setScale(qreal scale) { Q_UNUSED(scale); }
+bool LineShape::setRotation(qreal rotation) { Q_UNUSED(rotation); return false; }
+bool LineShape::setScale(qreal scale) { Q_UNUSED(scale); return false; }
 
 void LineShape::copyLineGeometryTo(LineShape &shape) const {
   shape.startPoint = startPoint;
