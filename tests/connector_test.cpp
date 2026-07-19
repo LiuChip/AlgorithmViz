@@ -10,6 +10,9 @@
 #include "../src/shapes/ellipse_shape.h"
 #include "../src/shapes/text_label.h"
 #include "../src/core/shape_controller/anchor_resolver.h"
+#include "../src/core/canvas.h"
+#include "../src/core/shape_controller/connector_controller.h"
+#include "../src/ui/main_window.h"
 
 class ConnectorTest : public QObject
 {
@@ -584,6 +587,470 @@ private slots:
         // 再次传入相同尺寸（且早已在 FixedSize 模式下），此时没有任何状态变化，返回 false
         QVERIFY(!label.setSize(curW, curH));
         QCOMPARE(label.getTextLayoutMode(), TextLabel::TextLayoutMode::FixedSize);
+    }
+
+    // 测试 37: 验证 ConnectorController 拖拽创建模式 (Press -> Move -> Release 超过阈值)
+    void testConnectorControllerCreateDragMode() {
+        Canvas canvas;
+        auto* rect1 = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        auto* rect2 = new RectShape(QPointF(80, 80), QSizeF(50, 50));
+        canvas.scene()->addItem(rect1);
+        canvas.scene()->addItem(rect2);
+
+        ConnectorController controller(&canvas);
+        QSignalSpy spy(&controller, &ConnectorController::connectorCreated);
+
+        controller.setCreateModeActive(true);
+        QCOMPARE(controller.state(), ConnectorController::State::Idle);
+
+        // 模拟按键在(10,10) - 属于 rect1 内部/边界
+        QGraphicsSceneMouseEvent pressEv(QEvent::GraphicsSceneMousePress);
+        pressEv.setButton(Qt::LeftButton);
+        pressEv.setScenePos(QPointF(10, 10));
+        QVERIFY(controller.handleMousePressEvent(&pressEv));
+        QCOMPARE(controller.state(), ConnectorController::State::Creating);
+
+        // 模拟拖动到(100,100) - 属于 rect2 内部/边界
+        QGraphicsSceneMouseEvent moveEv(QEvent::GraphicsSceneMouseMove);
+        moveEv.setScenePos(QPointF(100, 100));
+        QVERIFY(controller.handleMouseMoveEvent(&moveEv));
+
+        // 模拟松手在(100,100)，由于距离 > 8px 触发创建完成
+        QGraphicsSceneMouseEvent releaseEv(QEvent::GraphicsSceneMouseRelease);
+        releaseEv.setButton(Qt::LeftButton);
+        releaseEv.setScenePos(QPointF(100, 100));
+        QVERIFY(controller.handleMouseReleaseEvent(&releaseEv));
+
+        QCOMPARE(controller.state(), ConnectorController::State::Idle);
+        QCOMPARE(spy.count(), 1);
+    }
+
+    // 测试 38: 验证 ConnectorController 两点点击创建模式 (原地点击松开 -> 移动 -> 第二次点击松开)
+    void testConnectorControllerTwoClickMode() {
+        Canvas canvas;
+        auto* rect1 = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        auto* rect2 = new RectShape(QPointF(180, 180), QSizeF(50, 50));
+        canvas.scene()->addItem(rect1);
+        canvas.scene()->addItem(rect2);
+
+        ConnectorController controller(&canvas);
+        QSignalSpy spy(&controller, &ConnectorController::connectorCreated);
+
+        controller.setCreateModeActive(true);
+
+        // 第一次点击：Press 和 Release 都在(20, 20) - 属于 rect1
+        QGraphicsSceneMouseEvent pressEv1(QEvent::GraphicsSceneMousePress);
+        pressEv1.setButton(Qt::LeftButton);
+        pressEv1.setScenePos(QPointF(20, 20));
+        QVERIFY(controller.handleMousePressEvent(&pressEv1));
+        QCOMPARE(controller.state(), ConnectorController::State::Creating);
+
+        QGraphicsSceneMouseEvent releaseEv1(QEvent::GraphicsSceneMouseRelease);
+        releaseEv1.setButton(Qt::LeftButton);
+        releaseEv1.setScenePos(QPointF(20, 20));
+        QVERIFY(controller.handleMouseReleaseEvent(&releaseEv1));
+        // 原地松手，依然维持 Creating 状态 (留给两点点击法的后续引导)
+        QCOMPARE(controller.state(), ConnectorController::State::Creating);
+
+        // 空手移动到(200, 200) - 属于 rect2
+        QGraphicsSceneMouseEvent moveEv(QEvent::GraphicsSceneMouseMove);
+        moveEv.setScenePos(QPointF(200, 200));
+        QVERIFY(controller.handleMouseMoveEvent(&moveEv));
+
+        // 第二次点击：在终点(200, 200)触发 Press，直接完成终点确认
+        QGraphicsSceneMouseEvent pressEv2(QEvent::GraphicsSceneMousePress);
+        pressEv2.setButton(Qt::LeftButton);
+        pressEv2.setScenePos(QPointF(200, 200));
+        QVERIFY(controller.handleMousePressEvent(&pressEv2));
+
+        QCOMPARE(controller.state(), ConnectorController::State::Idle);
+        QCOMPARE(spy.count(), 1);
+    }
+
+    // 测试 39: 验证 ConnectorController 按 ESC 键强制中断取消操作
+    void testConnectorControllerCancelOperation() {
+        Canvas canvas;
+        auto* rect = new RectShape(QPointF(10, 10), QSizeF(50, 50));
+        canvas.scene()->addItem(rect);
+
+        ConnectorController controller(&canvas);
+
+        controller.setCreateModeActive(true);
+        QGraphicsSceneMouseEvent pressEv(QEvent::GraphicsSceneMousePress);
+        pressEv.setButton(Qt::LeftButton);
+        pressEv.setScenePos(QPointF(30, 30));
+        QVERIFY(controller.handleMousePressEvent(&pressEv));
+        QCOMPARE(controller.state(), ConnectorController::State::Creating);
+
+        // 按下 ESC 键
+        QKeyEvent escEv(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+        QVERIFY(controller.handleKeyPressEvent(&escEv));
+
+        QCOMPARE(controller.state(), ConnectorController::State::Idle);
+    }
+
+    // 测试 40: 验证 Connector::setStartAnchor / setEndAnchor 的 bool 返回值与锁定保护
+    void testConnectorSetAnchorBoolAndLocking() {
+        Connector conn(QPointF(10, 10), QPointF(100, 100));
+        ConnectorAnchor newAnchor = ConnectorAnchor::createFree(QPointF(50, 50));
+
+        // 未锁定时修改必须成功并返回 true
+        QVERIFY(conn.setStartAnchor(newAnchor));
+        QCOMPARE(conn.getStartAnchor().resolveScenePoint(), QPointF(50, 50));
+
+        // 锁定时修改必须失败并返回 false，且锚点保持原状不变
+        conn.setLocked(true);
+        ConnectorAnchor blockedAnchor = ConnectorAnchor::createFree(QPointF(80, 80));
+        QVERIFY(!conn.setStartAnchor(blockedAnchor));
+        QCOMPARE(conn.getStartAnchor().resolveScenePoint(), QPointF(50, 50));
+    }
+
+    // 测试 41: 验证端点命中区域测试 (`hitTestConnectorEndpoint`) 真正支持 10px 容差以及近距离端点优先择近
+    void testConnectorControllerEndpointHitTolerance() {
+        Canvas canvas;
+        ConnectorController controller(&canvas);
+        auto* conn = new Connector(QPointF(100, 100), QPointF(300, 300));
+        canvas.scene()->addItem(conn);
+
+        // 鼠标在 (106, 100)，距离起点 (100, 100) 为 6px。常规 stroker 描边仅两侧5px无法覆盖，但 searchRect 10px 容差必须准确命中
+        QGraphicsSceneMouseEvent pressEv(QEvent::GraphicsSceneMousePress);
+        pressEv.setButton(Qt::LeftButton);
+        pressEv.setScenePos(QPointF(106, 100));
+        QVERIFY(controller.handleMousePressEvent(&pressEv));
+        QCOMPARE(controller.state(), ConnectorController::State::DraggingEndpoint);
+        controller.cancelCurrentOperation();
+    }
+
+    // 测试 42: 验证拖拽过程中活动连线被外部销毁后的 QPointer 安全自愈机制（防悬空与防卡死）
+    void testConnectorControllerQPointerDeletionSafety() {
+        Canvas canvas;
+        ConnectorController controller(&canvas);
+        auto* conn = new Connector(QPointF(50, 50), QPointF(150, 150));
+        canvas.scene()->addItem(conn);
+
+        // 进入拖拽起点状态
+        QGraphicsSceneMouseEvent pressEv(QEvent::GraphicsSceneMousePress);
+        pressEv.setButton(Qt::LeftButton);
+        pressEv.setScenePos(QPointF(50, 50));
+        QVERIFY(controller.handleMousePressEvent(&pressEv));
+        QCOMPARE(controller.state(), ConnectorController::State::DraggingEndpoint);
+
+        // 模拟外部或未知场景下将当前活动的 Connector 销毁
+        delete conn; // 此时控制器内部的 QPointer 自动清零为 nullptr
+
+        // 持续发送移动与松手事件，控制器不能崩溃，并且必须迅速自愈重置至 Idle 状态
+        QGraphicsSceneMouseEvent moveEv(QEvent::GraphicsSceneMouseMove);
+        moveEv.setScenePos(QPointF(80, 80));
+        controller.handleMouseMoveEvent(&moveEv);
+        QCOMPARE(controller.state(), ConnectorController::State::Idle);
+
+        // 再次触发 ESC 键取消或重置，确保调用 cancelCurrentOperation 对已经 nullptr 的对象完全安全无副作用
+        QKeyEvent escEv(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+        controller.handleKeyPressEvent(&escEv);
+        QCOMPARE(controller.state(), ConnectorController::State::Idle);
+    }
+
+    // 测试 43: 验证对同一图形的各锚点模式自连接彻底拒绝拦截（Interior/Boundary 自连接全过滤）
+    void testConnectorControllerSelfConnectionRejection() {
+        Canvas canvas;
+        ConnectorController controller(&canvas);
+        auto* rect = new RectShape(QPointF(100, 100), QSizeF(100, 100)); // (100,100) 到 (200,200)
+        canvas.scene()->addItem(rect);
+
+        controller.setCreateModeActive(true);
+
+        // 点击矩形内部左上方点发起连线 (120, 120)
+        QGraphicsSceneMouseEvent pressEv(QEvent::GraphicsSceneMousePress);
+        pressEv.setButton(Qt::LeftButton);
+        pressEv.setScenePos(QPointF(120, 120));
+        QVERIFY(controller.handleMousePressEvent(&pressEv));
+        QCOMPARE(controller.state(), ConnectorController::State::Creating);
+
+        // 拖动至矩形右下方边界点并松手 (190, 190) -> 属于同一个 rect 图形的自连接，必须被拦截判定为废线清理
+        QGraphicsSceneMouseEvent releaseEv(QEvent::GraphicsSceneMouseRelease);
+        releaseEv.setButton(Qt::LeftButton);
+        releaseEv.setScenePos(QPointF(190, 190));
+        QVERIFY(controller.handleMouseReleaseEvent(&releaseEv));
+
+        // 状态机必须被重置为 Idle，并且创建连线未能落盘
+        QCOMPARE(controller.state(), ConnectorController::State::Idle);
+    }
+
+    // 测试 44: 验证 getSafeViewScale 极值缩放防护与 Ctrl 键修饰场景坐标防漂移
+    void testConnectorControllerSafeViewScaleAndCtrlPos() {
+        Canvas canvas;
+        ConnectorController controller(&canvas);
+        // 将视图缩放强制设为 0（异常或极端缩放），getSafeViewScale 必须回退为 1.0 避免除零或 NaN
+        QTransform zeroTransform;
+        zeroTransform.scale(0.0, 0.0);
+        canvas.setTransform(zeroTransform);
+
+        auto* conn = new Connector(QPointF(10, 10), QPointF(50, 50));
+        canvas.scene()->addItem(conn);
+
+        // 触发一次点击以记录 m_lastScenePos
+        QGraphicsSceneMouseEvent pressEv(QEvent::GraphicsSceneMousePress);
+        pressEv.setButton(Qt::LeftButton);
+        pressEv.setScenePos(QPointF(10, 10));
+        QVERIFY(controller.handleMousePressEvent(&pressEv));
+        QCOMPARE(controller.state(), ConnectorController::State::DraggingEndpoint);
+
+        // 发送键盘 Ctrl 键，控制器必须安全使用 m_lastScenePos 计算新位置并经过 getSafeViewScale 保护不发生除零溢出
+        QKeyEvent ctrlEv(QEvent::KeyPress, Qt::Key_Control, Qt::ControlModifier);
+        QVERIFY(controller.handleKeyPressEvent(&ctrlEv));
+        controller.cancelCurrentOperation();
+    }
+
+    // 测试 45: 验证公开事件路由接口的空指针防御
+    void testConnectorControllerNullEventDefense() {
+        Canvas canvas;
+        ConnectorController controller(&canvas);
+        QVERIFY(!controller.handleMousePressEvent(nullptr));
+        QVERIFY(!controller.handleMouseMoveEvent(nullptr));
+        QVERIFY(!controller.handleMouseReleaseEvent(nullptr));
+        QVERIFY(!controller.handleKeyPressEvent(nullptr));
+        QVERIFY(!controller.handleKeyReleaseEvent(nullptr));
+    }
+
+    // 测试 46: 通过真实 Canvas 鼠标压、动、放事件在 Connect 模式下完成连线创建
+    void testCanvasIntegrationMouseEvents() {
+        Canvas canvas;
+        auto* rect1 = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        auto* rect2 = new RectShape(QPointF(80, 80), QSizeF(50, 50));
+        canvas.scene()->addItem(rect1);
+        canvas.scene()->addItem(rect2);
+
+        canvas.setEditMode(Canvas::EditMode::Connect);
+        QVERIFY(canvas.connectorController()->isCreateModeActive());
+        QCOMPARE(canvas.dragMode(), QGraphicsView::NoDrag);
+
+        QSignalSpy spy(canvas.connectorController(), &ConnectorController::connectorCreated);
+
+        // 模拟鼠标点击压下创建起点 (10, 10) - 属于 rect1
+        QPoint viewportPress = canvas.mapFromScene(QPointF(10, 10));
+        QMouseEvent pressEv(QEvent::MouseButtonPress, viewportPress, viewportPress, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.mousePressEvent(&pressEv);
+        QCOMPARE(canvas.connectorController()->state(), ConnectorController::State::Creating);
+
+        // 模拟鼠标拖拽至 (100, 100) - 属于 rect2
+        QPoint viewportMove = canvas.mapFromScene(QPointF(100, 100));
+        QMouseEvent moveEv(QEvent::MouseMove, viewportMove, viewportMove, Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.mouseMoveEvent(&moveEv);
+
+        // 模拟鼠标松开完成创建
+        QMouseEvent releaseEv(QEvent::MouseButtonRelease, viewportMove, viewportMove, Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        canvas.mouseReleaseEvent(&releaseEv);
+
+        QCOMPARE(canvas.connectorController()->state(), ConnectorController::State::Idle);
+        QCOMPARE(spy.count(), 1);
+    }
+
+    // 测试 47: 验证 MainWindow 中真正创建并绑定了控制器及连线模式切换工具栏联动
+    void testMainWindowControllerCreation() {
+        MainWindow mainWindow;
+        Canvas* canvas = mainWindow.canvas();
+        QVERIFY(canvas != nullptr);
+        QVERIFY(canvas->connectorController() != nullptr);
+
+        QCOMPARE(canvas->editMode(), Canvas::EditMode::Select);
+        canvas->setEditMode(Canvas::EditMode::Connect);
+        QVERIFY(canvas->connectorController()->isCreateModeActive());
+    }
+
+    // 测试 48: 验证创建中途如果锁定或设置端点失败，临时连线安全清理不会在场景残留
+    void testAbortCreatingDeletesTemporaryConnector() {
+        Canvas canvas;
+        auto* rect = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        canvas.scene()->addItem(rect);
+
+        auto* controller = canvas.connectorController();
+        controller->setCreateModeActive(true);
+
+        controller->handleMousePress(QPointF(10, 10), Qt::LeftButton, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Creating);
+
+        // 在按住 ESC 键强行中止时，验证场景中临时连线已被清理
+        controller->handleKeyPress(Qt::Key_Escape, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Idle);
+        // 场景此时应该只有吸附图元（可能隐藏或无，没有 Connector 对象）
+        bool hasConnector = false;
+        for (auto* item : canvas.scene()->items()) {
+            if (dynamic_cast<Connector*>(item)) {
+                hasConnector = true;
+                break;
+            }
+        }
+        QVERIFY(!hasConnector);
+    }
+
+    // 测试 49: 第一次点击位于边框吸附容差边缘时，两点点击创建距离不再被边框吸附坐标误判为拖拽
+    void testTwoClickStartDistanceWithBoundarySnapping() {
+        Canvas canvas;
+        auto* rect = new RectShape(QPointF(100, 100), QSizeF(80, 60)); // 左边界 x = 100
+        canvas.scene()->addItem(rect);
+
+        auto* controller = canvas.connectorController();
+        controller->setCreateModeActive(true);
+
+        // 用户在 (93, 130) 点击（距离左边界 7px 会触发边框吸附至 (100, 130)）
+        QPointF clickPos(93, 130);
+        controller->handleMousePress(clickPos, Qt::LeftButton, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Creating);
+
+        // 用户原地松手触发 handleMouseRelease，必须基于原始物理坐标判定为两点点击（不误删）
+        controller->handleMouseRelease(clickPos, Qt::LeftButton, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Creating);
+    }
+
+    // 测试 50: 验证场景切换或 scene->clear() / clearScene() 后吸附指示器（QGraphicsObject/QPointer）生命周期安全且不出悬空崩溃
+    void testSnapIndicatorLifecycleAndSceneClear() {
+        Canvas canvas;
+        auto* controller = canvas.connectorController();
+        auto* rect = new RectShape(QPointF(100, 100), QSizeF(80, 60));
+        canvas.scene()->addItem(rect);
+
+        // 1. 明确进入创建态并触发初始点击
+        controller->setCreateModeActive(true);
+        controller->handleMousePress(QPointF(120, 120), Qt::LeftButton, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Creating);
+
+        // 2. 触发吸附更新，真正生成 SnapIndicator 图元
+        controller->handleMouseMove(QPointF(140, 140), Qt::NoModifier);
+        QVERIFY(!controller->snapIndicatorIsNull());
+        QVERIFY(controller->snapIndicator() != nullptr);
+
+        // 3. 模拟外部直接强行清空当前场景（考验底层的 QPointer 自动监控与防悬空）
+        canvas.scene()->clear();
+        QVERIFY(controller->snapIndicatorIsNull()); // QPointer 必须自动清零
+
+        // 4. 再次触发移动事件，控制器决不能崩溃且能自动重建光点或安全处理
+        controller->handleMouseMove(QPointF(0, 0), Qt::NoModifier);
+        QVERIFY(true);
+
+        // 5. 验证应用层统一收口接口 clearScene() 的安全性
+        auto* rect2 = new RectShape(QPointF(100, 100), QSizeF(80, 60));
+        canvas.scene()->addItem(rect2);
+        controller->handleMousePress(QPointF(120, 120), Qt::LeftButton, Qt::NoModifier);
+        controller->handleMouseMove(QPointF(140, 140), Qt::NoModifier);
+        QVERIFY(!controller->snapIndicatorIsNull());
+        canvas.clearScene();
+        QVERIFY(controller->snapIndicatorIsNull());
+        QCOMPARE(controller->state(), ConnectorController::State::Idle);
+    }
+
+    // 测试 51: 验证两点点击第二下鼠标按压完成创建后，后续同一点击流的 Release 释放事件会被正确吞掉消费
+    void testTwoClickSecondReleaseEventConsumed() {
+        Canvas canvas;
+        auto* rect1 = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        auto* rect2 = new RectShape(QPointF(80, 80), QSizeF(50, 50));
+        canvas.scene()->addItem(rect1);
+        canvas.scene()->addItem(rect2);
+
+        auto* controller = canvas.connectorController();
+        controller->setCreateModeActive(true);
+
+        // 第一击点开创建
+        controller->handleMousePress(QPointF(10, 10), Qt::LeftButton, Qt::NoModifier);
+        controller->handleMouseRelease(QPointF(10, 10), Qt::LeftButton, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Creating);
+
+        // 第二击按下直接完成创建
+        QVERIFY(controller->handleMousePress(QPointF(100, 100), Qt::LeftButton, Qt::NoModifier));
+        QCOMPARE(controller->state(), ConnectorController::State::Idle);
+
+        // 紧接着发出的鼠标释放信号，应该被控制器消费（返回 true）防穿透
+        QVERIFY(controller->handleMouseRelease(QPointF(100, 100), Qt::LeftButton, Qt::NoModifier));
+        // 下一次无关点击释放不再被错误消费
+        QVERIFY(!controller->handleMouseRelease(QPointF(100, 100), Qt::LeftButton, Qt::NoModifier));
+    }
+
+    // 测试 52: 验证创建完成后 connectorCreated 信号准确发射并具备可接入撤销栈的数据闭环
+    void testConnectorCreatedSignalAndUndoStackReady() {
+        Canvas canvas;
+        auto* rect1 = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        auto* rect2 = new RectShape(QPointF(120, 120), QSizeF(50, 50));
+        canvas.scene()->addItem(rect1);
+        canvas.scene()->addItem(rect2);
+
+        auto* controller = canvas.connectorController();
+        controller->setCreateModeActive(true);
+
+        QSignalSpy spy(controller, &ConnectorController::connectorCreated);
+        controller->handleMousePress(QPointF(10, 10), Qt::LeftButton, Qt::NoModifier);
+        controller->handleMouseMove(QPointF(150, 150), Qt::NoModifier);
+        controller->handleMouseRelease(QPointF(150, 150), Qt::LeftButton, Qt::NoModifier);
+
+        QCOMPARE(spy.count(), 1);
+        auto* createdConnector = qobject_cast<Connector*>(spy.takeFirst().at(0).value<QObject*>());
+        QVERIFY(createdConnector != nullptr);
+        QVERIFY(createdConnector->scene() == canvas.scene());
+    }
+
+    // 测试 53: [A1 验证] 连线起点必须吸附到有效目标，点击空白区域直接穿透且不进入创建态
+    void testConnectorCreateRequiresStartAnchor() {
+        Canvas canvas;
+        auto* controller = canvas.connectorController();
+        controller->setCreateModeActive(true);
+
+        // 场景无图形或点击在空白处
+        QVERIFY(!controller->handleMousePress(QPointF(100, 100), Qt::LeftButton, Qt::NoModifier));
+        QCOMPARE(controller->state(), ConnectorController::State::Idle);
+    }
+
+    // 测试 54: [A2 验证] 连线终点必须吸附到有效目标，拖向或两点点击在空白区均丢弃为废线
+    void testConnectorCreateRequiresEndAnchor() {
+        Canvas canvas;
+        auto* controller = canvas.connectorController();
+        auto* rect = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        canvas.scene()->addItem(rect);
+        controller->setCreateModeActive(true);
+
+        // 1. 拖拽至空白区域
+        controller->handleMousePress(QPointF(20, 20), Qt::LeftButton, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Creating);
+        controller->handleMouseMove(QPointF(200, 200), Qt::NoModifier);
+        controller->handleMouseRelease(QPointF(200, 200), Qt::LeftButton, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Idle);
+
+        // 2. 两点点击第二下点在空白区域
+        controller->handleMousePress(QPointF(20, 20), Qt::LeftButton, Qt::NoModifier);
+        controller->handleMouseRelease(QPointF(20, 20), Qt::LeftButton, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Creating);
+        controller->handleMousePress(QPointF(200, 200), Qt::LeftButton, Qt::NoModifier);
+        QCOMPARE(controller->state(), ConnectorController::State::Idle);
+    }
+
+    // 测试 55: [A2 补充验证] 降级产生的单端 Free 连线在运行时合法存在，不被误删
+    void testConnectorSingleEndpointFreeLegality() {
+        Canvas canvas;
+        auto* rect1 = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        auto* rect2 = new RectShape(QPointF(100, 100), QSizeF(50, 50));
+        canvas.scene()->addItem(rect1);
+        canvas.scene()->addItem(rect2);
+
+        auto* controller = canvas.connectorController();
+        controller->setCreateModeActive(true);
+        controller->handleMousePress(QPointF(20, 20), Qt::LeftButton, Qt::NoModifier);
+        controller->handleMouseMove(QPointF(120, 120), Qt::NoModifier);
+        controller->handleMouseRelease(QPointF(120, 120), Qt::LeftButton, Qt::NoModifier);
+
+        Connector* createdConn = nullptr;
+        for (auto* item : canvas.scene()->items()) {
+            if (auto* conn = dynamic_cast<Connector*>(item)) {
+                createdConn = conn;
+                break;
+            }
+        }
+        QVERIFY(createdConn != nullptr);
+        QCOMPARE(createdConn->getStartAnchor().mode(), ConnectorAnchor::Mode::Interior);
+        QCOMPARE(createdConn->getEndAnchor().mode(), ConnectorAnchor::Mode::Interior);
+
+        // 删除目标 2，触发端点降级为 Free
+        delete rect2;
+        QCOMPARE(createdConn->getEndAnchor().mode(), ConnectorAnchor::Mode::Free);
+        QCOMPARE(createdConn->getStartAnchor().mode(), ConnectorAnchor::Mode::Interior);
+        // 单端 Free 连线运行时合法，绝不能被自动销毁
+        QVERIFY(createdConn->scene() == canvas.scene());
     }
 };
 

@@ -16,8 +16,8 @@ public:
     explicit Connector(QPointF startScenePt, QPointF endScenePt);
 
     // 设置锚点核心接口
-    void setStartAnchor(const ConnectorAnchor& anchor);
-    void setEndAnchor(const ConnectorAnchor& anchor);
+    bool setStartAnchor(const ConnectorAnchor& anchor);
+    bool setEndAnchor(const ConnectorAnchor& anchor);
 
     ConnectorAnchor getStartAnchor() const { return startAnchor; }
     ConnectorAnchor getEndAnchor() const { return endAnchor; }

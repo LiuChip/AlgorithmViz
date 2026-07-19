@@ -1,6 +1,34 @@
 #ifndef CANVAS_CONTROLLER_H
 #define CANVAS_CONTROLLER_H
 
-// 画布交互控制器（待实现）：选中、框选、创建和拖动图形。
+#include <QObject>
+#include <QPointF>
+
+class Canvas;
+class QMouseEvent;
+
+class CanvasController : public QObject
+{
+    Q_OBJECT
+public:
+    explicit CanvasController(Canvas *canvas, QObject *parent = nullptr);
+    ~CanvasController() override;
+
+    bool handleMousePressEvent(QMouseEvent *event);
+    bool handleMouseMoveEvent(QMouseEvent *event);
+    bool handleMouseReleaseEvent(QMouseEvent *event);
+
+    void cancelCurrentOperation();
+
+public slots:
+    void copy();
+    void paste();
+    void cut();
+    void deleteSelected();
+    void selectAll();
+
+private:
+    Canvas *m_canvas = nullptr;
+};
 
 #endif // CANVAS_CONTROLLER_H

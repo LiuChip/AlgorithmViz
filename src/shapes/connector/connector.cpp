@@ -112,18 +112,20 @@ void Connector::onTargetGeometryChanged() {
     refreshGeometry();
 }
 
-void Connector::setStartAnchor(const ConnectorAnchor& anchor) {
-    if (isLocked()) return; // 锁定状态下禁止用户主动修改端点
+bool Connector::setStartAnchor(const ConnectorAnchor& anchor) {
+    if (isLocked()) return false; // 锁定状态下禁止用户主动修改端点
     startAnchor = anchor;
     rebuildTargetConnections();
     refreshGeometry();
+    return true;
 }
 
-void Connector::setEndAnchor(const ConnectorAnchor& anchor) {
-    if (isLocked()) return; // 锁定状态下禁止用户主动修改端点
+bool Connector::setEndAnchor(const ConnectorAnchor& anchor) {
+    if (isLocked()) return false; // 锁定状态下禁止用户主动修改端点
     endAnchor = anchor;
     rebuildTargetConnections();
     refreshGeometry();
+    return true;
 }
 
 void Connector::setEndStyle(EndStyle style) {
