@@ -51,6 +51,9 @@ public:
     bool setBorderInfo(Border newBorder) override;
     bool setBorderInfo() override { return Shape::setBorderInfo(); }
 
+    bool supportsLayoutPosition() const override { return false; }
+    bool supportsLayoutSize() const override { return false; }
+
 private:
     // 1. 保存端点的锚点信息，供 UI/控制层调用 setStartAnchor/setEndAnchor 接口时使用
     ConnectorAnchor startAnchor;

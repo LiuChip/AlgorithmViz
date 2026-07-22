@@ -57,6 +57,7 @@ public:
   // 屏蔽虚函数 setSize，线段的宽高仅作为端点的派生结果，禁止直接修改并返回 false。
   bool setSize(QSizeF size) override;
   bool setSize(qreal width, qreal height) override;
+  bool supportsLayoutSize() const override { return false; }
 
   // 屏蔽旋转与缩放，线段的方向与长短完全由两个端点主宰并返回 false。
   bool setRotation(qreal rotation) override;

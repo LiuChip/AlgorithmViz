@@ -228,6 +228,12 @@ public:
   // 更新图形的变换原点（transformOriginPoint）为其自身局部几何中心 (width*0.5, height*0.5)。
   void updateTransformOrigin();
 
+  // 返回当前图形是否支持在布局引擎中统一平移定位（如水平/垂直对齐、网格排布）。默认 true。
+  virtual bool supportsLayoutPosition() const { return true; }
+
+  // 返回当前图形是否支持在布局引擎中统一修改尺寸（如对齐尺寸、等宽等高）。默认 true。
+  virtual bool supportsLayoutSize() const { return true; }
+
 signals:
   // 当图形的位置、尺寸、旋转或几何形状发生变化时发出此信号。
   void geometryChanged();

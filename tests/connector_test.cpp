@@ -847,7 +847,7 @@ private slots:
         QCOMPARE(spy.count(), 1);
     }
 
-    // 测试 47: 验证 MainWindow 中真正创建并绑定了控制器及连线模式切换工具栏联动
+    // 测试 47: 验证 MainWindow 中真正创建并绑定了中央画布与控制器
     void testMainWindowControllerCreation() {
         MainWindow mainWindow;
         Canvas* canvas = mainWindow.canvas();

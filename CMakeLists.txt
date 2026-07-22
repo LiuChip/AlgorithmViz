@@ -64,6 +64,7 @@ add_library(algorithmviz_core STATIC
     # === UI ===
     src/ui/main_window.cpp
     src/ui/main_window.h
+    src/core/layout_engine/layout_engine.h src/core/layout_engine/layout_engine.cpp
 
 
 )
@@ -80,4 +81,9 @@ enable_testing()
 add_executable(connector_test tests/connector_test.cpp)
 target_link_libraries(connector_test PRIVATE algorithmviz_core Qt6::Test)
 add_test(NAME ConnectorTest COMMAND connector_test)
+
+add_executable(layout_engine_test tests/layout_engine_test.cpp)
+target_link_libraries(layout_engine_test PRIVATE algorithmviz_core Qt6::Test)
+add_test(NAME LayoutEngineTest COMMAND layout_engine_test)
+
 target_include_directories(algorithmviz_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)

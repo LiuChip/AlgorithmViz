@@ -21,7 +21,7 @@
 | **开发语言** | C++17 | 使用现代 C++ 标准算法与数学检查函数 (`std::isfinite` / `std::clamp`) 确保边界数值防护 |
 | **图形界面** | Qt 6.11.1 | 采用 `QGraphicsView` + `QGraphicsScene` + `QGraphicsObject` 构建高性能矢量渲染画布 |
 | **构建系统** | CMake 3.20+ + Ninja | 开启严格编译诊断选项 (`-Wall -Wpedantic -Wshadow`) 确保生产级编译零错误零警告 |
-| **测试驱动** | QTest / ctest | 搭载 57 个自动化核心与安全测试用例，提供毫秒级高确定性闭环回归 |
+| **测试驱动** | QTest / ctest | 搭载双测试套件 (`connector_test` 57项 / `layout_engine_test` 6项)，提供毫秒级高确定性闭环回归 |
 
 ---
 
@@ -37,8 +37,8 @@ src/
 │   │   ├── anchor_resolver.*       # [已完成] 物理空间最短投影吸附解析器
 │   │   ├── canvas_controller.*     # [已完成] 通用图元选择、创建、移动与选区控制器
 │   │   └── control_box.*           # [已完成] 选中控制盒图元、定制旋转光标与 8向/2端点手柄
-│   ├── layout/
-│   │   └── layout_engine.*         # [待新建] 布局引擎（对齐/分布/尺寸统一/紧凑排列）
+│   ├── layout_engine/
+│   │   └── layout_engine.*         # [已完成] 水平/垂直对齐平铺、网格排布、统一尺寸与快照安全重放引擎
 │   └── undo/
 │       ├── undo_manager.*          # [已完成] QUndoStack 外壳与状态暴露组件
 │       └── undo_commands.*         # [待新建] 11 类具体操作命令子类
@@ -83,15 +83,15 @@ src/
 
 ## 🚀 构建与自动化测试
 
-项目使用 CMake 与 C++17 跨平台构建，在 Unix / macOS 环境中，支持通过终端一条命令直接进行全量严格构建与自动化套件回归：
+项目使用 CMake 与 C++17 跨平台构建，在 Unix / macOS 环境中，支持通过终端一条命令直接进行全量严格构建与双可执行自动化测试套件回归：
 
 ```bash
-# 构建并运行 57 项自动化测试套件（跳过 Qt 许可证诊断提示）
+# 构建并运行全部 2 套自动化回归测试
 export QTFRAMEWORK_BYPASS_LICENSE_CHECK=1
 cmake --build build && ctest --test-dir build --output-on-failure
 ```
 
-> **测试覆盖情况**：自动化套件 `tests/connector_test.cpp` 包含 **57 个全量测试用例**（涵盖无限边界防御、连线克隆降级、连线创建规则收紧 A1/A2、以及 `Canvas` 平移缩放清场回收自测），能在 `0.7s` 内极速 100% 绿色通过！
+> **测试覆盖情况**：自动化回归工程由 **双执行测试程序**（`connector_test` 57 用例与 `layout_engine_test` 6 大核心用例套件）组成，覆盖全量图形连线与多重布局计算，能在 `0.75s` 内极速 100% 绿色通过！
 
 ---
 
@@ -111,7 +111,7 @@ cmake --build build && ctest --test-dir build --output-on-failure
 - [x] **Task 7: Canvas 独立组件化 — 镜头导航与按键/事件动态分流路由**
 - [x] **Task 10a: UndoManager 构建与安全清场对接**
 - [x] **Task 8: CanvasController + ControlBox — 图形选择、创建、平移/键盘微移（含连线联动）与手柄/多选系统** *(已完成)*
-- [ ] **Task 9: LayoutEngine — 多选图元对齐、等距分布、尺寸统一与紧凑间距排列**
+- [x] **Task 9: LayoutEngine — 水平/垂直对齐平铺与网格排布、统一尺寸与快照引擎 (含 ACID 事务回滚、可布局模型过滤与 UI 置空闭环)** *(已闭环)*
 - [ ] **Task 10b: UndoCommands — 11 业务操作栈命令子类**
 - [ ] **Task 11: 最终集成回归与文档封包**
 
