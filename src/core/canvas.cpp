@@ -1,6 +1,8 @@
 #include "canvas.h"
+#include "shapes/shape.h"
 #include "shape_controller/connector_controller.h"
 #include "shape_controller/canvas_controller.h"
+#include "shape_controller/control_box.h"
 #include "shape_controller/anchor_resolver.h"
 #include "undo_manager.h"
 #include <QScrollBar>
@@ -13,6 +15,9 @@ Canvas::Canvas(QWidget *parent)
     , m_undoManager(new UndoManager(this))
 {
     setScene(m_scene);
+    if (m_canvasController && m_scene) {
+        m_canvasController->attachToScene(m_scene);
+    }
 
     setRenderHint(QPainter::Antialiasing);
     setRenderHint(QPainter::SmoothPixmapTransform);
@@ -28,12 +33,20 @@ void Canvas::clearScene()
 {
     if (m_connectorController) {
         m_connectorController->cancelCurrentOperation();
+        m_connectorController->destroySnapIndicator();
     }
     if (m_canvasController) {
         m_canvasController->cancelCurrentOperation();
     }
     if (m_scene) {
-        m_scene->clear();
+        // 仅删除用户图元（直接继承自 Shape 且没有父 QGraphicsItem 的顶层图元），
+        // 绝不调用 m_scene->clear()，以保护 ControlBox、RubberBandItem 以及手柄等基础设施。
+        QList<QGraphicsItem*> items = m_scene->items();
+        for (QGraphicsItem *item : items) {
+            if (!item->parentItem() && dynamic_cast<::Shape*>(item)) {
+                delete item;
+            }
+        }
     }
 }
 
@@ -148,6 +161,17 @@ void Canvas::mousePressEvent(QMouseEvent *event)
     }
 
     if (m_toolMode == ToolMode::Select) {
+        // 第一级分流：若点击处在控制点（HandleItem）或控制盒（ControlBox）范围，直接交由 QGraphicsView 原生分发，
+        // 防止 CanvasController 的 findShapeAt 穿透控制点误把底层的 Shape 捕获并进入 MovingItems 状态。
+        QGraphicsItem *curr = itemAt(event->pos());
+        while (curr) {
+            if (dynamic_cast<HandleItem*>(curr) || dynamic_cast<ControlBox*>(curr)) {
+                QGraphicsView::mousePressEvent(event);
+                return;
+            }
+            curr = curr->parentItem();
+        }
+
         if (m_canvasController && m_canvasController->handleMousePressEvent(event)) {
             event->accept();
             return;
@@ -336,7 +360,18 @@ void Canvas::keyPressEvent(QKeyEvent *event)
         if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
             m_canvasController->deleteSelected(); event->accept(); return;
         }
+        if (m_canvasController->handleKeyPressEvent(event)) {
+            return;
+        }
     }
 
     QGraphicsView::keyPressEvent(event);
+}
+
+void Canvas::keyReleaseEvent(QKeyEvent *event)
+{
+    if (m_canvasController && m_canvasController->handleKeyReleaseEvent(event)) {
+        return;
+    }
+    QGraphicsView::keyReleaseEvent(event);
 }

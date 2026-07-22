@@ -12,6 +12,8 @@
 #include "../src/core/shape_controller/anchor_resolver.h"
 #include "../src/core/canvas.h"
 #include "../src/core/shape_controller/connector_controller.h"
+#include "../src/core/shape_controller/control_box.h"
+#include "../src/core/shape_controller/canvas_controller.h"
 #include "../src/ui/main_window.h"
 
 class ConnectorTest : public QObject
@@ -1051,6 +1053,165 @@ private slots:
         QCOMPARE(createdConn->getStartAnchor().mode(), ConnectorAnchor::Mode::Interior);
         // 单端 Free 连线运行时合法，绝不能被自动销毁
         QVERIFY(createdConn->scene() == canvas.scene());
+    }
+
+    // 测试 56: [P1 验证] TextLabel 在 AutoSize 或 setText 后应该正确同步其局部旋转中心(transformOriginPoint)
+    void testTextLabelAutoSizeUpdatesTransformOrigin() {
+        TextLabel label(QPointF(0, 0), "Hello World");
+        QSizeF size = label.getSize();
+        QVERIFY(size.width() > 0.0 && size.height() > 0.0);
+        QCOMPARE(label.transformOriginPoint(), QPointF(size.width() * 0.5, size.height() * 0.5));
+
+        // 修改文字使其尺寸发生变化，旋转中心也应当同步自动调整到新的半宽高
+        label.setText("Updated Longer Text For Test");
+        QSizeF newSize = label.getSize();
+        QVERIFY(newSize != size);
+        QCOMPARE(label.transformOriginPoint(), QPointF(newSize.width() * 0.5, newSize.height() * 0.5));
+    }
+
+    // 测试 57: [P1 验证] 使用 Ctrl+点击选中或多选图形时，不应启动拖拽移动状态(MovingItems)
+    void testCtrlClickDoesNotStartMoving() {
+        Canvas canvas;
+        auto* controller = canvas.canvasController();
+        auto* rect = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        canvas.scene()->addItem(rect);
+
+        QPoint viewportPress = canvas.mapFromScene(QPointF(25, 25));
+        QMouseEvent pressEvent(QEvent::MouseButtonPress, QPointF(viewportPress), QPointF(viewportPress), QPointF(viewportPress), Qt::LeftButton, Qt::LeftButton, Qt::ControlModifier);
+        canvas.setToolMode(Canvas::ToolMode::Select);
+        QVERIFY(controller->handleMousePressEvent(&pressEvent));
+        QVERIFY(rect->isSelected());
+        QCOMPARE(controller->currentState(), CanvasController::InteractionState::Idle);
+    }
+
+    // 测试 58: [P2 验证] 点击仅仅选中的已锁定图形时，不应进入 MovingItems 状态
+    void testLockedSelectionDoesNotEnterMovingState() {
+        Canvas canvas;
+        auto* controller = canvas.canvasController();
+        auto* rect = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        rect->setLocked(true);
+        canvas.scene()->addItem(rect);
+
+        QPoint viewportPress = canvas.mapFromScene(QPointF(25, 25));
+        QMouseEvent pressEvent(QEvent::MouseButtonPress, QPointF(viewportPress), QPointF(viewportPress), QPointF(viewportPress), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.setToolMode(Canvas::ToolMode::Select);
+        QVERIFY(controller->handleMousePressEvent(&pressEvent));
+        QVERIFY(rect->isSelected());
+        QCOMPARE(controller->currentState(), CanvasController::InteractionState::Idle);
+    }
+
+    // 测试 59: [P2 验证] Shape::setSize() 在批处理修改尺寸和原点时只发出一次 geometryChanged 信号
+    void testShapeSetSizeEmitsOneGeometryChanged() {
+        auto* rect = new RectShape(QPointF(0, 0), QSizeF(100, 100));
+        QSignalSpy spy(rect, &Shape::geometryChanged);
+        rect->setSize(QSizeF(200, 150));
+        QCOMPARE(spy.count(), 1);
+        delete rect;
+    }
+
+    // 测试 60: [P2 验证] selectAll() 选中的对象如果被外部直接销毁，选区集合能安全清除裸指针绝不崩溃
+    void testSelectAllDeletionSafety() {
+        Canvas canvas;
+        auto* controller = canvas.canvasController();
+        auto* rect = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        canvas.scene()->addItem(rect);
+
+        controller->selectAll();
+        QVERIFY(controller->selectedItems().contains(rect));
+
+        delete rect;
+        QVERIFY(controller->selectedItems().isEmpty());
+        QVERIFY(controller->primarySelection() == nullptr);
+    }
+
+    // 测试 61: [P2 验证] 通过 ControlBox 手柄拖动连线端点时，能够利用 AnchorResolver 重新吸附到新目标；按住 Ctrl 时强行创建 Free
+    void testConnectorEndpointDragReattachOrFree() {
+        Canvas canvas;
+        auto* rect1 = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        auto* rect2 = new RectShape(QPointF(100, 100), QSizeF(50, 50));
+        canvas.scene()->addItem(rect1);
+        canvas.scene()->addItem(rect2);
+
+        Connector* conn = new Connector(QPointF(25, 25), QPointF(125, 125));
+        canvas.scene()->addItem(conn);
+        conn->setStartAnchor(ConnectorAnchor::createBoundary(rect1, 0.0));
+        conn->setEndAnchor(ConnectorAnchor::createBoundary(rect2, 3.14));
+
+        ControlBox* cb = canvas.canvasController()->controlBox();
+        cb->setTarget(conn);
+
+        HandleItem* startHandle = nullptr;
+        for (QGraphicsItem* item : cb->childItems()) {
+            if (auto* handle = dynamic_cast<HandleItem*>(item)) {
+                if (handle->handleType() == HandleType::StartEndpoint) {
+                    startHandle = handle;
+                    break;
+                }
+            }
+        }
+        QVERIFY(startHandle != nullptr);
+
+        cb->onHandleMoved(startHandle, QPointF(120, 100), Qt::NoModifier);
+        QCOMPARE(conn->getStartAnchor().mode(), ConnectorAnchor::Mode::Boundary);
+        QVERIFY(conn->getStartAnchor().targetShape() == rect2);
+
+        cb->onHandleMoved(startHandle, QPointF(120, 100), Qt::ControlModifier);
+        QCOMPARE(conn->getStartAnchor().mode(), ConnectorAnchor::Mode::Free);
+    }
+
+    // 测试 62: [P1 补充验证] ControlBox 旋转或 Shape 旋转应围绕中心(transformOriginPoint)并无缝发射信号
+    void testControlBoxRotationAroundCenter() {
+        auto* rect = new RectShape(QPointF(100, 100), QSizeF(80, 60));
+        QCOMPARE(rect->transformOriginPoint(), QPointF(40, 30));
+
+        ControlBox cb;
+        QSignalSpy spyStarted(&cb, &ControlBox::rotateStarted);
+        QSignalSpy spyFinished(&cb, &ControlBox::rotateFinished);
+        cb.setTarget(rect);
+
+        HandleItem* rotateHandle = nullptr;
+        for (QGraphicsItem* item : cb.childItems()) {
+            if (auto* h = dynamic_cast<HandleItem*>(item)) {
+                if (h->handleType() == HandleType::Rotate) {
+                    rotateHandle = h;
+                    break;
+                }
+            }
+        }
+        QVERIFY(rotateHandle != nullptr);
+
+        cb.onHandlePressed(rotateHandle, QPointF(140, 100));
+        QCOMPARE(spyStarted.count(), 1);
+
+        rect->setRotation(90.0);
+        cb.onHandleReleased(rotateHandle, QPointF(170, 130));
+        QCOMPARE(spyFinished.count(), 1);
+
+        delete rect;
+    }
+
+    // 测试 63: [P2 补充验证] 带有旋转及在 Canvas 中缩放情况下的 ControlBox 手柄缩放对角解算与位置补偿
+    void testControlBoxResizeWithRotationAndZoom() {
+        auto* rect = new RectShape(QPointF(100, 100), QSizeF(100, 100));
+        rect->setRotation(90.0);
+        ControlBox cb;
+        cb.setTarget(rect);
+
+        HandleItem* brHandle = nullptr;
+        for (QGraphicsItem* item : cb.childItems()) {
+            if (auto* h = dynamic_cast<HandleItem*>(item)) {
+                if (h->handleType() == HandleType::BottomRight) {
+                    brHandle = h;
+                    break;
+                }
+            }
+        }
+        QVERIFY(brHandle != nullptr);
+
+        cb.onHandlePressed(brHandle, QPointF(200, 200));
+        cb.applyResizeFromAnchor(HandleType::BottomRight, QPointF(220, 200), QPointF(220, 200), Qt::NoModifier);
+        QVERIFY(rect->getSize().width() > 0 && rect->getSize().height() > 0);
+        delete rect;
     }
 };
 

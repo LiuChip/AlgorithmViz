@@ -233,6 +233,7 @@ void Connector::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 
     // 3. 绘制文字标签
     drawText(painter, QRectF(startPoint, endPoint).normalized());
+    drawSelectionOutline(painter);
 }
 
 QVariant Connector::itemChange(GraphicsItemChange change, const QVariant &value) {

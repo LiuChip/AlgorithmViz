@@ -84,6 +84,7 @@ protected:
   QString name = "";
   int layer = 0;
   bool lock_stat = false;
+  bool m_inGeometryChange = false;
 
   // 将当前 Shape 的公共属性复制到目标 Shape，但不复制 ID。
   void copyPropertiesTo(Shape &shape) const;
@@ -100,6 +101,9 @@ protected:
 
   // 按当前 TextStyle 在指定矩形内绘制文本，并支持自动换行。
   void drawText(QPainter *painter, const QRectF &rect) const;
+
+  // 当图形处于选中状态时绘制高亮轮廓。
+  void drawSelectionOutline(QPainter *painter) const;
 
 private:
   // 为当前对象分配一个全局唯一的自增 ID。
@@ -221,9 +225,14 @@ public:
   // 创建当前图形的深拷贝，并为副本分配新的 ID。
   virtual Shape *clone() const = 0;
 
+  // 更新图形的变换原点（transformOriginPoint）为其自身局部几何中心 (width*0.5, height*0.5)。
+  void updateTransformOrigin();
+
 signals:
   // 当图形的位置、尺寸、旋转或几何形状发生变化时发出此信号。
   void geometryChanged();
+  // 当锁定状态变化时发出此信号。
+  void lockedChanged(bool locked);
 };
 
 #endif // SHAPE_H

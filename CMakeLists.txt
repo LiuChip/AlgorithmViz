@@ -24,6 +24,8 @@ add_library(algorithmviz_core STATIC
     src/core/shape_controller/connector_controller.h
     src/core/shape_controller/anchor_resolver.cpp
     src/core/shape_controller/anchor_resolver.h
+    src/core/shape_controller/control_box.h
+    src/core/shape_controller/control_box.cpp
 
     # === Shapes ===
     src/shapes/shape.cpp
@@ -62,12 +64,15 @@ add_library(algorithmviz_core STATIC
     # === UI ===
     src/ui/main_window.cpp
     src/ui/main_window.h
+
+
 )
 
 target_link_libraries(algorithmviz_core PUBLIC Qt6::Widgets Qt6::Core Qt6::Gui)
 
 # 主程序入口
-add_executable(AlgorithmViz src/main.cpp)
+add_executable(AlgorithmViz src/main.cpp
+    )
 target_link_libraries(AlgorithmViz PRIVATE algorithmviz_core)
 
 # 自动化单元测试框架集成

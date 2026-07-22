@@ -38,6 +38,7 @@ public:
     QRectF boundingRect() const override;
     QPainterPath shape() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+    QPainterPath localGeometryPath() const;
 
     // 保护措施：禁用外部直接针对图形本身的位置、宽高、旋转与缩放设置并返回 false
     bool setPosition(QPointF point) override { Q_UNUSED(point); return false; }
@@ -74,8 +75,6 @@ private:
     void refreshGeometry();
     // 核心骨架生成：把主线与箭头构造成统一路径（保证包围盒与点击不被切裁）
     QPainterPath visualPath() const;
-    // 本地基础主线路径生成
-    QPainterPath localGeometryPath() const;
 
 protected:
     // 保护图形不被外力拖移原点及发生额外形变

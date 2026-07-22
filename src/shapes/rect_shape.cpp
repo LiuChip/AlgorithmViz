@@ -61,6 +61,7 @@ void RectShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 
     painter->drawRect(rect);
     drawText(painter, rect);
+    drawSelectionOutline(painter);
 }
 
 Shape *RectShape::clone() const

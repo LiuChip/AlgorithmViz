@@ -1,6 +1,9 @@
 #include "shape.h"
+#include "shapes/connector/connector.h"
+#include "shapes/line_shape.h"
 #include <cmath>
 #include <algorithm>
+#include <QPainterPath>
 
 int Shape::IdVal = 0;
 int Shape::Layer = 0;
@@ -32,9 +35,22 @@ bool Shape::setSize(qreal newWidth, qreal newHeight) {
     return false;
   }
 
+  // 保存修改前的几何中心在场景空间中的绝对位置
+  QPointF oldCenterScene = mapToScene(QPointF(this->width * 0.5, this->height * 0.5));
+
+  m_inGeometryChange = true;
   prepareGeometryChange();
   this->width = newWidth;
   this->height = newHeight;
+  updateTransformOrigin(); // 保持旋转和缩放中心始终位于局部几何中心
+
+  // 恢复场景空间中的几何中心点不变（保持自转和自缩放的几何不变量）
+  QPointF newCenterScene = mapToScene(QPointF(this->width * 0.5, this->height * 0.5));
+  if (newCenterScene != oldCenterScene) {
+    setPos(pos() + (oldCenterScene - newCenterScene));
+  }
+  m_inGeometryChange = false;
+
   update();
   emit geometryChanged();
   return true;
@@ -154,11 +170,13 @@ bool Shape::getLockStat() const { return lock_stat; }
 bool Shape::isLocked() const { return lock_stat; }
 
 void Shape::setLocked(bool locked) {
+  if (lock_stat == locked) return;
   lock_stat = locked;
   setFlag(ItemIsMovable, !locked);
   // A locked item remains selectable so it can be unlocked from the UI.
   setFlag(ItemIsSelectable, true);
   update();
+  emit lockedChanged(locked);
 }
 
 void Shape::toggleLocked() { setLocked(!lock_stat); }
@@ -170,6 +188,7 @@ Shape::Shape(qreal x, qreal y, qreal initialWidth, qreal initialHeight)
       height(std::max<qreal>(0.0, std::isfinite(initialHeight) ? initialHeight : 0.0)) {
   setID();
   setPos(std::isfinite(x) ? x : 0.0, std::isfinite(y) ? y : 0.0);
+  updateTransformOrigin();
   setFlag(ItemIsMovable, true);
   setFlag(ItemIsSelectable, true);
   setFlag(ItemSendsGeometryChanges, true);
@@ -180,9 +199,14 @@ Shape::Shape(QPointF point, QSizeF size)
       height(std::max<qreal>(0.0, std::isfinite(size.height()) ? size.height() : 0.0)) {
   setID();
   setPos(std::isfinite(point.x()) && std::isfinite(point.y()) ? point : QPointF(0, 0));
+  updateTransformOrigin();
   setFlag(ItemIsMovable, true);
   setFlag(ItemIsSelectable, true);
   setFlag(ItemSendsGeometryChanges, true);
+}
+
+void Shape::updateTransformOrigin() {
+  setTransformOriginPoint(this->width * 0.5, this->height * 0.5);
 }
 
 QVariant Shape::itemChange(GraphicsItemChange change, const QVariant &value) {
@@ -243,7 +267,9 @@ QVariant Shape::itemChange(GraphicsItemChange change, const QVariant &value) {
   case ItemScaleHasChanged:
   case ItemTransformHasChanged:
   case ItemTransformOriginPointHasChanged:
-    emit geometryChanged();
+    if (!m_inGeometryChange) {
+      emit geometryChanged();
+    }
     break;
   default:
     break;
@@ -307,4 +333,25 @@ void Shape::drawText(QPainter *painter, const QRectF &rect) const {
   painter->setFont(textStyle.font);
   const int textFlags = static_cast<int>(textStyle.alignment) | Qt::TextWordWrap;
   painter->drawText(rect, textFlags, textStyle.text);
+}
+
+void Shape::drawSelectionOutline(QPainter *painter) const {
+  if (!isSelected()) {
+    return;
+  }
+  painter->save();
+  painter->setRenderHint(QPainter::Antialiasing, true);
+  QPen dashPen(QColor(0, 120, 215), 1.5, Qt::DashLine);
+  dashPen.setCosmetic(true);
+  painter->setPen(dashPen);
+  painter->setBrush(Qt::NoBrush);
+
+  if (auto *conn = dynamic_cast<const Connector*>(this)) {
+    painter->drawPath(conn->localGeometryPath());
+  } else if (auto *line = dynamic_cast<const LineShape*>(this)) {
+    painter->drawPath(line->localGeometryPath());
+  } else {
+    painter->drawRect(QRectF(0.0, 0.0, width, height));
+  }
+  painter->restore();
 }

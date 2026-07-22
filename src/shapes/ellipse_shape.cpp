@@ -46,6 +46,7 @@ void EllipseShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
 
     painter->drawEllipse(rect);
     drawText(painter, rect);
+    drawSelectionOutline(painter);
 }
 
 Shape *EllipseShape::clone() const

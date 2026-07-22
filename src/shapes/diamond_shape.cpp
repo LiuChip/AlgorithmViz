@@ -56,6 +56,7 @@ void DiamondShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *opti
 
     painter->drawPolygon(diamond);
     drawText(painter, QRectF(0, 0, width, height));
+    drawSelectionOutline(painter);
 }
 
 Shape *DiamondShape::clone() const

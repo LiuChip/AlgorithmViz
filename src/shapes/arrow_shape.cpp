@@ -33,6 +33,7 @@ void ArrowShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option
 
     painter->setBrush(border.borderColor);
     painter->drawPolygon(head);
+    drawSelectionOutline(painter);
 }
 
 QPainterPath ArrowShape::visualPath() const

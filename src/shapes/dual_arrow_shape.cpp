@@ -38,6 +38,7 @@ void DualArrowShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *op
     painter->setBrush(border.borderColor);
     painter->drawPolygon(startHead);
     painter->drawPolygon(endHead);
+    drawSelectionOutline(painter);
 }
 
 QPainterPath DualArrowShape::visualPath() const

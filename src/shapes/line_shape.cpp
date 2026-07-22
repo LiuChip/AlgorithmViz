@@ -121,6 +121,7 @@ void LineShape::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
 
   applyBorderStyle(painter);
   painter->drawLine(startPoint, endPoint);
+  drawSelectionOutline(painter);
 }
 
 QVariant LineShape::itemChange(GraphicsItemChange change, const QVariant &value) {

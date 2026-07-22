@@ -107,6 +107,7 @@ public:
 
     void cancelCurrentOperation();
     void resetOperationState();
+    void destroySnapIndicator();
 
 signals:
     void connectorCreated(Connector* connector);
@@ -124,7 +125,6 @@ private:
 
     void updateSnapIndicator(const ConnectorAnchor& anchor);
     void hideSnapIndicator();
-    void destroySnapIndicator();
 
     qreal getSafeViewScale() const;
     bool hitTestConnectorEndpoint(const QPointF& scenePos, Connector*& outConnector, EndpointType& outType) const;

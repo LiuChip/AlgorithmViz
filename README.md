@@ -35,8 +35,8 @@ src/
 │   ├── shape_controller/
 │   │   ├── connector_controller.*  # [已完成] 连线专用控制器（吸附创建与端点重连管理）
 │   │   ├── anchor_resolver.*       # [已完成] 物理空间最短投影吸附解析器
-│   │   ├── canvas_controller.*     # [待实现] 通用图元选择、创建、移动与删除控制器
-│   │   └── control_box.*           # [待新建] 选中控制盒图元与 8向/旋转手柄
+│   │   ├── canvas_controller.*     # [已完成] 通用图元选择、创建、移动与选区控制器
+│   │   └── control_box.*           # [已完成] 选中控制盒图元、定制旋转光标与 8向/2端点手柄
 │   ├── layout/
 │   │   └── layout_engine.*         # [待新建] 布局引擎（对齐/分布/尺寸统一/紧凑排列）
 │   └── undo/
@@ -110,7 +110,7 @@ cmake --build build && ctest --test-dir build --output-on-failure
 - [x] **Task 6: ConnectorController 行为前置收紧**（起点必吸附 A1、终点必吸附 A2、运行时单端 Free 自愈确认）
 - [x] **Task 7: Canvas 独立组件化 — 镜头导航与按键/事件动态分流路由**
 - [x] **Task 10a: UndoManager 构建与安全清场对接**
-- [ ] **Task 8: CanvasController + ControlBox — 图形选择、拖扯创建、位移（含连线钉子联动）与手柄交互** *(进行中)*
+- [x] **Task 8: CanvasController + ControlBox — 图形选择、创建、平移/键盘微移（含连线联动）与手柄/多选系统** *(已完成)*
 - [ ] **Task 9: LayoutEngine — 多选图元对齐、等距分布、尺寸统一与紧凑间距排列**
 - [ ] **Task 10b: UndoCommands — 11 业务操作栈命令子类**
 - [ ] **Task 11: 最终集成回归与文档封包**

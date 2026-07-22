@@ -25,9 +25,12 @@ void TextLabel::refreshTextGeometry() {
     return;
   }
 
+  m_inGeometryChange = true;
   prepareGeometryChange();
   width = size.width();
   height = size.height();
+  updateTransformOrigin();
+  m_inGeometryChange = false;
   update();
   emit geometryChanged();
 }
@@ -129,6 +132,7 @@ void TextLabel::paint(QPainter *painter,
   applyBorderStyle(painter);
   painter->drawRect(rect);
   drawText(painter, rect);
+  drawSelectionOutline(painter);
 }
 
 Shape *TextLabel::clone() const {
