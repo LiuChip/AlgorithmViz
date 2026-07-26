@@ -1,0 +1,109 @@
+name: Cross-Platform Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: AlgorithmViz-Windows
+            executable_name: AlgorithmViz.exe
+          - os: macos-13
+            artifact_name: AlgorithmViz-macOS
+            executable_name: AlgorithmViz
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: '6.5.0'
+          host: ${{ matrix.os == 'macos-13' && 'mac' || 'windows' }}
+          target: 'desktop'
+          arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || '' }}
+          modules: 'qt5compat qtdeclarative qtimageformats qtmultimedia qtpositioning qtshadertools qtsvg qttools qtwebchannel qtwebsockets'
+
+      - name: Configure CMake (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+          
+      - name: Configure CMake (macOS)
+        if: matrix.os == 'macos-13'
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Run Windows Deploy (windeployqt)
+        if: matrix.os == 'windows-latest'
+        run: |
+          windeployqt build/${{ matrix.executable_name }}
+
+      - name: Run macOS Deploy (macdeployqt)
+        if: matrix.os == 'macos-13'
+        run: |
+          macdeployqt build/${{ matrix.executable_name }}.app
+
+      - name: Archive Production Artifact (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            build/
+            !build/CMakeFiles/
+            !build/CMakeCache.txt
+            !build/Makefile
+            !build/*.cmake
+
+      - name: Archive Production Artifact (macOS)
+        if: matrix.os == 'macos-13'
+        run: |
+          cd build
+          zip -r ${{ matrix.artifact_name }}.zip ${{ matrix.executable_name }}.app
+          
+      - name: Upload Artifact (macOS)
+        if: matrix.os == 'macos-13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: build/${{ matrix.artifact_name }}.zip
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Display downloaded files
+        run: ls -R
+
+      - name: Zip Windows Artifacts
+        run: |
+          cd AlgorithmViz-Windows
+          zip -r ../AlgorithmViz-Windows.zip .
+          cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            AlgorithmViz-Windows.zip
+            AlgorithmViz-macOS/AlgorithmViz-macOS.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
