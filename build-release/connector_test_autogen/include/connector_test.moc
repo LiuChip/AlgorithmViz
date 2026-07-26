@@ -1,0 +1,380 @@
+/****************************************************************************
+** Meta object code from reading C++ file 'connector_test.cpp'
+**
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.1)
+**
+** WARNING! All changes made in this file will be lost!
+*****************************************************************************/
+
+#include <QtCore/qmetatype.h>
+
+#include <QtCore/qtmochelpers.h>
+
+#include <memory>
+
+
+#include <QtCore/qxptype_traits.h>
+#if !defined(Q_MOC_OUTPUT_REVISION)
+#error "The header file 'connector_test.cpp' doesn't include <QObject>."
+#elif Q_MOC_OUTPUT_REVISION != 69
+#error "This file was generated using the moc from 6.11.1. It"
+#error "cannot be used with the include files from this version of Qt."
+#error "(The moc has changed too much.)"
+#endif
+
+#ifndef Q_CONSTINIT
+#define Q_CONSTINIT
+#endif
+
+QT_WARNING_PUSH
+QT_WARNING_DISABLE_DEPRECATED
+QT_WARNING_DISABLE_GCC("-Wuseless-cast")
+namespace {
+struct qt_meta_tag_ZN13ConnectorTestE_t {};
+} // unnamed namespace
+
+template <> constexpr inline auto ConnectorTest::qt_create_metaobjectdata<qt_meta_tag_ZN13ConnectorTestE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "ConnectorTest",
+        "testConnectorBasicFree",
+        "",
+        "testConnectorEndStyleCanSwitchBackToNone",
+        "testConnectorImmovability",
+        "testConnectorFollowsTargetGeometry",
+        "testConnectorTargetDestructionDegradesToFree",
+        "testConnectorDualBindingSameTarget",
+        "testConnectorArrowHitTest",
+        "testConnectorClone",
+        "testConnectorUnbindOneAnchorWhileOtherTracks",
+        "testConnectorCloneImmovability",
+        "testConnectorSignalDedup",
+        "testLineShapeSingleEndpointSignal",
+        "testConnectorAnchorImmediateFallback",
+        "testAnchorResolverCtrlOverride",
+        "testAnchorResolverBoundarySnapping",
+        "testAnchorResolverInteriorSnapping",
+        "testAnchorResolverThinRect",
+        "testAnchorResolverInvalidScale",
+        "testAnchorResolverIgnoreLineShape",
+        "testArrowShapeHitTest",
+        "testShapeInvalidSize",
+        "testShapeNaNSize",
+        "testAnchorResolverNaNPoint",
+        "testAnchorResolverEllipseSnapSuccess",
+        "testAnchorResolverEllipseSnapRejected",
+        "testTextLabelSetSizeSideEffect",
+        "testShapeSetPositionAndScaleValidation",
+        "testConnectorAnchorClamping",
+        "testItemChangeNaNGuard",
+        "testConnectorLockedAnchorModification",
+        "testConnectorLockedTargetDestroyStillDegrades",
+        "testConnectorSetPositionReturnsFalse",
+        "testConnectorNoPenHidesArrow",
+        "testAnchorResolverTolOverflow",
+        "testDegradeAnchorRespectsLock",
+        "testConnectorSetBorderInfoStyleChange",
+        "testTextLabelSetSizeToCurrentDimensions",
+        "testConnectorControllerCreateDragMode",
+        "testConnectorControllerTwoClickMode",
+        "testConnectorControllerCancelOperation",
+        "testConnectorSetAnchorBoolAndLocking",
+        "testConnectorControllerEndpointHitTolerance",
+        "testConnectorControllerQPointerDeletionSafety",
+        "testConnectorControllerSelfConnectionRejection",
+        "testConnectorControllerSafeViewScaleAndCtrlPos",
+        "testConnectorControllerNullEventDefense",
+        "testCanvasIntegrationMouseEvents",
+        "testFirstConnectorCreationKeepsSceneMappingStable",
+        "testShapePreviewKeepsTopLeftStable",
+        "testShiftConstrainsShapePreviewToSquare",
+        "testShiftConstrainsConnectorTo45Degrees",
+        "testShapeCreationKeepsToolActiveForContinuousDrawing",
+        "testMainWindowControllerCreation",
+        "testAbortCreatingDeletesTemporaryConnector",
+        "testTwoClickStartDistanceWithBoundarySnapping",
+        "testSnapIndicatorLifecycleAndSceneClear",
+        "testTwoClickSecondReleaseEventConsumed",
+        "testConnectorCreatedSignalAndUndoStackReady",
+        "testConnectorCreateRequiresStartAnchor",
+        "testConnectorCreateRequiresEndAnchor",
+        "testConnectorSingleEndpointFreeLegality",
+        "testTextLabelAutoSizeUpdatesTransformOrigin",
+        "testCtrlClickDoesNotStartMoving",
+        "testLockedSelectionDoesNotEnterMovingState",
+        "testShapeSetSizeEmitsOneGeometryChanged",
+        "testSelectAllDeletionSafety",
+        "testConnectorEndpointDragReattachOrFree",
+        "testControlBoxRotationAroundCenter",
+        "testControlBoxResizeWithRotationAndZoom"
+    };
+
+    QtMocHelpers::UintData qt_methods {
+        // Slot 'testConnectorBasicFree'
+        QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorEndStyleCanSwitchBackToNone'
+        QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorImmovability'
+        QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorFollowsTargetGeometry'
+        QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorTargetDestructionDegradesToFree'
+        QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorDualBindingSameTarget'
+        QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorArrowHitTest'
+        QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorClone'
+        QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorUnbindOneAnchorWhileOtherTracks'
+        QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorCloneImmovability'
+        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorSignalDedup'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testLineShapeSingleEndpointSignal'
+        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorAnchorImmediateFallback'
+        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverCtrlOverride'
+        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverBoundarySnapping'
+        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverInteriorSnapping'
+        QtMocHelpers::SlotData<void()>(17, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverThinRect'
+        QtMocHelpers::SlotData<void()>(18, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverInvalidScale'
+        QtMocHelpers::SlotData<void()>(19, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverIgnoreLineShape'
+        QtMocHelpers::SlotData<void()>(20, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testArrowShapeHitTest'
+        QtMocHelpers::SlotData<void()>(21, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testShapeInvalidSize'
+        QtMocHelpers::SlotData<void()>(22, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testShapeNaNSize'
+        QtMocHelpers::SlotData<void()>(23, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverNaNPoint'
+        QtMocHelpers::SlotData<void()>(24, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverEllipseSnapSuccess'
+        QtMocHelpers::SlotData<void()>(25, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverEllipseSnapRejected'
+        QtMocHelpers::SlotData<void()>(26, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testTextLabelSetSizeSideEffect'
+        QtMocHelpers::SlotData<void()>(27, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testShapeSetPositionAndScaleValidation'
+        QtMocHelpers::SlotData<void()>(28, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorAnchorClamping'
+        QtMocHelpers::SlotData<void()>(29, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testItemChangeNaNGuard'
+        QtMocHelpers::SlotData<void()>(30, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorLockedAnchorModification'
+        QtMocHelpers::SlotData<void()>(31, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorLockedTargetDestroyStillDegrades'
+        QtMocHelpers::SlotData<void()>(32, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorSetPositionReturnsFalse'
+        QtMocHelpers::SlotData<void()>(33, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorNoPenHidesArrow'
+        QtMocHelpers::SlotData<void()>(34, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAnchorResolverTolOverflow'
+        QtMocHelpers::SlotData<void()>(35, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testDegradeAnchorRespectsLock'
+        QtMocHelpers::SlotData<void()>(36, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorSetBorderInfoStyleChange'
+        QtMocHelpers::SlotData<void()>(37, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testTextLabelSetSizeToCurrentDimensions'
+        QtMocHelpers::SlotData<void()>(38, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorControllerCreateDragMode'
+        QtMocHelpers::SlotData<void()>(39, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorControllerTwoClickMode'
+        QtMocHelpers::SlotData<void()>(40, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorControllerCancelOperation'
+        QtMocHelpers::SlotData<void()>(41, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorSetAnchorBoolAndLocking'
+        QtMocHelpers::SlotData<void()>(42, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorControllerEndpointHitTolerance'
+        QtMocHelpers::SlotData<void()>(43, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorControllerQPointerDeletionSafety'
+        QtMocHelpers::SlotData<void()>(44, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorControllerSelfConnectionRejection'
+        QtMocHelpers::SlotData<void()>(45, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorControllerSafeViewScaleAndCtrlPos'
+        QtMocHelpers::SlotData<void()>(46, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorControllerNullEventDefense'
+        QtMocHelpers::SlotData<void()>(47, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testCanvasIntegrationMouseEvents'
+        QtMocHelpers::SlotData<void()>(48, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testFirstConnectorCreationKeepsSceneMappingStable'
+        QtMocHelpers::SlotData<void()>(49, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testShapePreviewKeepsTopLeftStable'
+        QtMocHelpers::SlotData<void()>(50, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testShiftConstrainsShapePreviewToSquare'
+        QtMocHelpers::SlotData<void()>(51, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testShiftConstrainsConnectorTo45Degrees'
+        QtMocHelpers::SlotData<void()>(52, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testShapeCreationKeepsToolActiveForContinuousDrawing'
+        QtMocHelpers::SlotData<void()>(53, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testMainWindowControllerCreation'
+        QtMocHelpers::SlotData<void()>(54, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testAbortCreatingDeletesTemporaryConnector'
+        QtMocHelpers::SlotData<void()>(55, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testTwoClickStartDistanceWithBoundarySnapping'
+        QtMocHelpers::SlotData<void()>(56, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testSnapIndicatorLifecycleAndSceneClear'
+        QtMocHelpers::SlotData<void()>(57, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testTwoClickSecondReleaseEventConsumed'
+        QtMocHelpers::SlotData<void()>(58, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorCreatedSignalAndUndoStackReady'
+        QtMocHelpers::SlotData<void()>(59, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorCreateRequiresStartAnchor'
+        QtMocHelpers::SlotData<void()>(60, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorCreateRequiresEndAnchor'
+        QtMocHelpers::SlotData<void()>(61, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorSingleEndpointFreeLegality'
+        QtMocHelpers::SlotData<void()>(62, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testTextLabelAutoSizeUpdatesTransformOrigin'
+        QtMocHelpers::SlotData<void()>(63, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testCtrlClickDoesNotStartMoving'
+        QtMocHelpers::SlotData<void()>(64, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testLockedSelectionDoesNotEnterMovingState'
+        QtMocHelpers::SlotData<void()>(65, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testShapeSetSizeEmitsOneGeometryChanged'
+        QtMocHelpers::SlotData<void()>(66, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testSelectAllDeletionSafety'
+        QtMocHelpers::SlotData<void()>(67, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorEndpointDragReattachOrFree'
+        QtMocHelpers::SlotData<void()>(68, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testControlBoxRotationAroundCenter'
+        QtMocHelpers::SlotData<void()>(69, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testControlBoxResizeWithRotationAndZoom'
+        QtMocHelpers::SlotData<void()>(70, 2, QMC::AccessPrivate, QMetaType::Void),
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<ConnectorTest, qt_meta_tag_ZN13ConnectorTestE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
+Q_CONSTINIT const QMetaObject ConnectorTest::staticMetaObject = { {
+    QMetaObject::SuperData::link<QObject::staticMetaObject>(),
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN13ConnectorTestE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN13ConnectorTestE_t>.data,
+    qt_static_metacall,
+    nullptr,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN13ConnectorTestE_t>.metaTypes,
+    nullptr
+} };
+
+void ConnectorTest::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
+{
+    auto *_t = static_cast<ConnectorTest *>(_o);
+    if (_c == QMetaObject::InvokeMetaMethod) {
+        switch (_id) {
+        case 0: _t->testConnectorBasicFree(); break;
+        case 1: _t->testConnectorEndStyleCanSwitchBackToNone(); break;
+        case 2: _t->testConnectorImmovability(); break;
+        case 3: _t->testConnectorFollowsTargetGeometry(); break;
+        case 4: _t->testConnectorTargetDestructionDegradesToFree(); break;
+        case 5: _t->testConnectorDualBindingSameTarget(); break;
+        case 6: _t->testConnectorArrowHitTest(); break;
+        case 7: _t->testConnectorClone(); break;
+        case 8: _t->testConnectorUnbindOneAnchorWhileOtherTracks(); break;
+        case 9: _t->testConnectorCloneImmovability(); break;
+        case 10: _t->testConnectorSignalDedup(); break;
+        case 11: _t->testLineShapeSingleEndpointSignal(); break;
+        case 12: _t->testConnectorAnchorImmediateFallback(); break;
+        case 13: _t->testAnchorResolverCtrlOverride(); break;
+        case 14: _t->testAnchorResolverBoundarySnapping(); break;
+        case 15: _t->testAnchorResolverInteriorSnapping(); break;
+        case 16: _t->testAnchorResolverThinRect(); break;
+        case 17: _t->testAnchorResolverInvalidScale(); break;
+        case 18: _t->testAnchorResolverIgnoreLineShape(); break;
+        case 19: _t->testArrowShapeHitTest(); break;
+        case 20: _t->testShapeInvalidSize(); break;
+        case 21: _t->testShapeNaNSize(); break;
+        case 22: _t->testAnchorResolverNaNPoint(); break;
+        case 23: _t->testAnchorResolverEllipseSnapSuccess(); break;
+        case 24: _t->testAnchorResolverEllipseSnapRejected(); break;
+        case 25: _t->testTextLabelSetSizeSideEffect(); break;
+        case 26: _t->testShapeSetPositionAndScaleValidation(); break;
+        case 27: _t->testConnectorAnchorClamping(); break;
+        case 28: _t->testItemChangeNaNGuard(); break;
+        case 29: _t->testConnectorLockedAnchorModification(); break;
+        case 30: _t->testConnectorLockedTargetDestroyStillDegrades(); break;
+        case 31: _t->testConnectorSetPositionReturnsFalse(); break;
+        case 32: _t->testConnectorNoPenHidesArrow(); break;
+        case 33: _t->testAnchorResolverTolOverflow(); break;
+        case 34: _t->testDegradeAnchorRespectsLock(); break;
+        case 35: _t->testConnectorSetBorderInfoStyleChange(); break;
+        case 36: _t->testTextLabelSetSizeToCurrentDimensions(); break;
+        case 37: _t->testConnectorControllerCreateDragMode(); break;
+        case 38: _t->testConnectorControllerTwoClickMode(); break;
+        case 39: _t->testConnectorControllerCancelOperation(); break;
+        case 40: _t->testConnectorSetAnchorBoolAndLocking(); break;
+        case 41: _t->testConnectorControllerEndpointHitTolerance(); break;
+        case 42: _t->testConnectorControllerQPointerDeletionSafety(); break;
+        case 43: _t->testConnectorControllerSelfConnectionRejection(); break;
+        case 44: _t->testConnectorControllerSafeViewScaleAndCtrlPos(); break;
+        case 45: _t->testConnectorControllerNullEventDefense(); break;
+        case 46: _t->testCanvasIntegrationMouseEvents(); break;
+        case 47: _t->testFirstConnectorCreationKeepsSceneMappingStable(); break;
+        case 48: _t->testShapePreviewKeepsTopLeftStable(); break;
+        case 49: _t->testShiftConstrainsShapePreviewToSquare(); break;
+        case 50: _t->testShiftConstrainsConnectorTo45Degrees(); break;
+        case 51: _t->testShapeCreationKeepsToolActiveForContinuousDrawing(); break;
+        case 52: _t->testMainWindowControllerCreation(); break;
+        case 53: _t->testAbortCreatingDeletesTemporaryConnector(); break;
+        case 54: _t->testTwoClickStartDistanceWithBoundarySnapping(); break;
+        case 55: _t->testSnapIndicatorLifecycleAndSceneClear(); break;
+        case 56: _t->testTwoClickSecondReleaseEventConsumed(); break;
+        case 57: _t->testConnectorCreatedSignalAndUndoStackReady(); break;
+        case 58: _t->testConnectorCreateRequiresStartAnchor(); break;
+        case 59: _t->testConnectorCreateRequiresEndAnchor(); break;
+        case 60: _t->testConnectorSingleEndpointFreeLegality(); break;
+        case 61: _t->testTextLabelAutoSizeUpdatesTransformOrigin(); break;
+        case 62: _t->testCtrlClickDoesNotStartMoving(); break;
+        case 63: _t->testLockedSelectionDoesNotEnterMovingState(); break;
+        case 64: _t->testShapeSetSizeEmitsOneGeometryChanged(); break;
+        case 65: _t->testSelectAllDeletionSafety(); break;
+        case 66: _t->testConnectorEndpointDragReattachOrFree(); break;
+        case 67: _t->testControlBoxRotationAroundCenter(); break;
+        case 68: _t->testControlBoxResizeWithRotationAndZoom(); break;
+        default: ;
+        }
+    }
+    (void)_a;
+}
+
+const QMetaObject *ConnectorTest::metaObject() const
+{
+    return QObject::d_ptr->metaObject ? QObject::d_ptr->dynamicMetaObject() : &staticMetaObject;
+}
+
+void *ConnectorTest::qt_metacast(const char *_clname)
+{
+    if (!_clname) return nullptr;
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN13ConnectorTestE_t>.strings))
+        return static_cast<void*>(this);
+    return QObject::qt_metacast(_clname);
+}
+
+int ConnectorTest::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
+{
+    _id = QObject::qt_metacall(_c, _id, _a);
+    if (_id < 0)
+        return _id;
+    if (_c == QMetaObject::InvokeMetaMethod) {
+        if (_id < 69)
+            qt_static_metacall(this, _c, _id, _a);
+        _id -= 69;
+    }
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+        if (_id < 69)
+            *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
+        _id -= 69;
+    }
+    return _id;
+}
+QT_WARNING_POP

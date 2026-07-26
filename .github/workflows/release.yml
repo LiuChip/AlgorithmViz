@@ -10,6 +10,7 @@ jobs:
     name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -23,22 +24,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup MSVC
+        if: matrix.os == 'windows-latest'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
-          version: '6.5.0'
+          version: '6.5.3'
           host: ${{ matrix.os == 'macos-13' && 'mac' || 'windows' }}
           target: 'desktop'
-          arch: ${{ matrix.os == 'windows-latest' && 'win64_mingw' || '' }}
+          arch: ${{ matrix.os == 'windows-latest' && 'win64_msvc2019_64' || '' }}
           modules: 'qt5compat qtdeclarative qtimageformats qtmultimedia qtpositioning qtshadertools qtsvg qttools qtwebchannel qtwebsockets'
 
-      - name: Configure CMake (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-          
-      - name: Configure CMake (macOS)
-        if: matrix.os == 'macos-13'
+      - name: Configure CMake
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
