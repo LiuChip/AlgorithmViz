@@ -24,6 +24,7 @@ signals:
     void canUndoChanged(bool canUndo);
     void canRedoChanged(bool canRedo);
     void cleanChanged(bool clean);
+    void historyChanged();
 
 private:
     QUndoStack *m_stack = nullptr;

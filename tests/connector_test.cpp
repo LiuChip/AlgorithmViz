@@ -1,7 +1,9 @@
 #include <QtTest/QTest>
 #include <QtTest/QSignalSpy>
 #include <QGraphicsScene>
+#include <QDockWidget>
 #include <QPointer>
+#include <QLineF>
 #include "../src/shapes/connector/connector.h"
 #include "../src/shapes/connector/connector_anchor.h"
 #include "../src/shapes/rect_shape.h"
@@ -14,7 +16,10 @@
 #include "../src/core/shape_controller/connector_controller.h"
 #include "../src/core/shape_controller/control_box.h"
 #include "../src/core/shape_controller/canvas_controller.h"
+#include "../src/core/shape_controller/drawing_constraints.h"
 #include "../src/ui/main_window.h"
+#include "../src/editor/html_editor_widget.h"
+#include "../src/editor/diagnostics_widget.h"
 
 class ConnectorTest : public QObject
 {
@@ -27,6 +32,21 @@ private slots:
         QCOMPARE(conn.getStartAnchor().mode(), ConnectorAnchor::Mode::Free);
         QCOMPARE(conn.getEndAnchor().mode(), ConnectorAnchor::Mode::Free);
         QCOMPARE(conn.pos(), QPointF(0, 0)); // Connector 的本地位置恒定在(0,0)
+    }
+
+    // 测试：普通连线默认无箭头，并且可以从单向箭头切回普通连线。
+    void testConnectorEndStyleCanSwitchBackToNone() {
+        Connector conn(QPointF(0, 0), QPointF(100, 0));
+        QCOMPARE(conn.getEndStyle(), Connector::EndStyle::None);
+
+        conn.setEndStyle(Connector::EndStyle::Arrow);
+        QCOMPARE(conn.getEndStyle(), Connector::EndStyle::Arrow);
+
+        conn.setEndStyle(Connector::EndStyle::None);
+        QCOMPARE(conn.getEndStyle(), Connector::EndStyle::None);
+
+        conn.setEndStyle(Connector::EndStyle::DualArrow);
+        QCOMPARE(conn.getEndStyle(), Connector::EndStyle::DualArrow);
     }
 
     // 测试 2: 连线整体防拖动及形变锁定测试
@@ -847,10 +867,226 @@ private slots:
         QCOMPARE(spy.count(), 1);
     }
 
+    // 测试：空画布第一次创建连线时，加入预览图元不能改变视图坐标映射。
+    // 该回归测试覆盖首次画线时 sceneRect 自动扩展导致的起点/终点失准问题。
+    void testFirstConnectorCreationKeepsSceneMappingStable() {
+        Canvas canvas;
+        canvas.resize(800, 600);
+        canvas.show();
+        QTest::qWait(1);
+
+        canvas.setToolMode(Canvas::ToolMode::CreateLine);
+
+        const QPoint startViewport = canvas.viewport()->rect().center();
+        const QPoint endViewport = startViewport + QPoint(120, 80);
+        const QRectF sceneRectBefore = canvas.scene()->sceneRect();
+        const QPointF expectedStart = canvas.mapToScene(startViewport);
+        const QPointF expectedEnd = canvas.mapToScene(endViewport);
+
+        QMouseEvent pressEvent(QEvent::MouseButtonPress, startViewport, startViewport,
+                               Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.mousePressEvent(&pressEvent);
+
+        // 加入第一条预览线后，场景矩形和 viewport 映射都必须保持不变。
+        QCOMPARE(canvas.scene()->sceneRect(), sceneRectBefore);
+        QVERIFY(QLineF(canvas.mapToScene(startViewport), expectedStart).length() < 1e-9);
+
+        QMouseEvent moveEvent(QEvent::MouseMove, endViewport, endViewport,
+                              Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.mouseMoveEvent(&moveEvent);
+        QMouseEvent releaseEvent(QEvent::MouseButtonRelease, endViewport, endViewport,
+                                 Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        canvas.mouseReleaseEvent(&releaseEvent);
+
+        QCOMPARE(canvas.scene()->sceneRect(), sceneRectBefore);
+        QVERIFY(QLineF(canvas.mapToScene(endViewport), expectedEnd).length() < 1e-9);
+
+        Connector *created = nullptr;
+        for (QGraphicsItem *item : canvas.scene()->items()) {
+            if (auto *connector = dynamic_cast<Connector *>(item)) {
+                created = connector;
+                break;
+            }
+        }
+        QVERIFY(created != nullptr);
+        QVERIFY(QLineF(created->getStartAnchor().resolveScenePoint(), expectedStart).length() < 1e-6);
+        QVERIFY(QLineF(created->getEndAnchor().resolveScenePoint(), expectedEnd).length() < 1e-6);
+    }
+
+    // 测试 47: 普通图形预览在尺寸变化时保持鼠标定义的左上角，不发生跳动
+    void testShapePreviewKeepsTopLeftStable() {
+        Canvas canvas;
+        canvas.setToolMode(Canvas::ToolMode::CreateRect);
+
+        const QPoint startPos = canvas.mapFromScene(QPointF(100.0, 100.0));
+        QMouseEvent pressEvent(QEvent::MouseButtonPress, startPos, startPos,
+                               Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.mousePressEvent(&pressEvent);
+
+        auto previewRect = [&canvas]() -> RectShape * {
+            for (QGraphicsItem *item : canvas.scene()->items()) {
+                if (auto *rect = dynamic_cast<RectShape *>(item)) {
+                    return rect;
+                }
+            }
+            return nullptr;
+        };
+
+        const QPoint firstMovePos = canvas.mapFromScene(QPointF(180.0, 160.0));
+        QMouseEvent firstMoveEvent(QEvent::MouseMove, firstMovePos, firstMovePos,
+                                   Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.mouseMoveEvent(&firstMoveEvent);
+
+        RectShape *preview = previewRect();
+        QVERIFY(preview != nullptr);
+        QCOMPARE(preview->pos(), QPointF(100.0, 100.0));
+        QCOMPARE(preview->getSize(), QSizeF(80.0, 60.0));
+
+        const QPoint secondMovePos = canvas.mapFromScene(QPointF(140.0, 130.0));
+        QMouseEvent secondMoveEvent(QEvent::MouseMove, secondMovePos, secondMovePos,
+                                    Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.mouseMoveEvent(&secondMoveEvent);
+
+        preview = previewRect();
+        QVERIFY(preview != nullptr);
+        QCOMPARE(preview->pos(), QPointF(100.0, 100.0));
+        QCOMPARE(preview->getSize(), QSizeF(40.0, 30.0));
+
+        QKeyEvent escapeEvent(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+        canvas.keyPressEvent(&escapeEvent);
+        QCOMPARE(canvas.toolMode(), Canvas::ToolMode::Select);
+    }
+
+    // 测试：Shift 将普通图形约束为正方形，并且预览左上角保持稳定。
+    void testShiftConstrainsShapePreviewToSquare() {
+        Canvas canvas;
+        canvas.setToolMode(Canvas::ToolMode::CreateRect);
+
+        const QPoint startPos = canvas.mapFromScene(QPointF(100.0, 100.0));
+        QMouseEvent pressEvent(QEvent::MouseButtonPress, startPos, startPos,
+                               Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.mousePressEvent(&pressEvent);
+
+        const QPoint movePos = canvas.mapFromScene(QPointF(180.0, 140.0));
+        QMouseEvent moveEvent(QEvent::MouseMove, movePos, movePos,
+                              Qt::NoButton, Qt::LeftButton, Qt::ShiftModifier);
+        canvas.mouseMoveEvent(&moveEvent);
+
+        RectShape *preview = nullptr;
+        for (QGraphicsItem *item : canvas.scene()->items()) {
+            if (auto *rect = dynamic_cast<RectShape *>(item)) {
+                preview = rect;
+                break;
+            }
+        }
+        QVERIFY(preview != nullptr);
+        QVERIFY(qAbs(preview->getSize().width() - preview->getSize().height()) < 1e-9);
+        QCOMPARE(preview->pos(), QPointF(100.0, 100.0));
+        QCOMPARE(preview->getSize(), QSizeF(80.0, 80.0));
+
+        QKeyEvent escapeEvent(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+        canvas.keyPressEvent(&escapeEvent);
+        QCOMPARE(canvas.toolMode(), Canvas::ToolMode::Select);
+    }
+
+    // 测试：Shift 将自由连线终点约束到最近的 45 度方向；Ctrl 仍保留自由端点语义。
+    void testShiftConstrainsConnectorTo45Degrees() {
+        Canvas canvas;
+        ConnectorController controller(&canvas);
+        QSignalSpy spy(&controller, &ConnectorController::connectorCreated);
+        controller.setCreateModeActive(true);
+
+        const Qt::KeyboardModifiers modifiers = Qt::ControlModifier | Qt::ShiftModifier;
+        QGraphicsSceneMouseEvent pressEvent(QEvent::GraphicsSceneMousePress);
+        pressEvent.setButton(Qt::LeftButton);
+        pressEvent.setScenePos(QPointF(0.0, 0.0));
+        pressEvent.setModifiers(modifiers);
+        QVERIFY(controller.handleMousePressEvent(&pressEvent));
+
+        QGraphicsSceneMouseEvent moveEvent(QEvent::GraphicsSceneMouseMove);
+        moveEvent.setScenePos(QPointF(100.0, 20.0));
+        moveEvent.setModifiers(modifiers);
+        QVERIFY(controller.handleMouseMoveEvent(&moveEvent));
+
+        QGraphicsSceneMouseEvent releaseEvent(QEvent::GraphicsSceneMouseRelease);
+        releaseEvent.setButton(Qt::LeftButton);
+        releaseEvent.setScenePos(QPointF(100.0, 20.0));
+        releaseEvent.setModifiers(modifiers);
+        QVERIFY(controller.handleMouseReleaseEvent(&releaseEvent));
+
+        QCOMPARE(spy.count(), 1);
+        Connector *created = nullptr;
+        for (QGraphicsItem *item : canvas.scene()->items()) {
+            if (auto *connector = dynamic_cast<Connector *>(item)) {
+                created = connector;
+                break;
+            }
+        }
+        QVERIFY(created != nullptr);
+        const QPointF start = created->getStartAnchor().resolveScenePoint();
+        const QPointF end = created->getEndAnchor().resolveScenePoint();
+        QVERIFY(qAbs(start.y() - end.y()) < 1e-6);
+        QVERIFY(end.x() > start.x());
+    }
+
+    // 测试 47: 普通图形创建完成后保持当前绘图工具，支持连续绘制
+    void testShapeCreationKeepsToolActiveForContinuousDrawing() {
+        Canvas canvas;
+        canvas.setToolMode(Canvas::ToolMode::CreateRect);
+
+        auto createRect = [&canvas](const QPointF &start, const QPointF &end) {
+            const QPoint pressPos = canvas.mapFromScene(start);
+            const QPoint releasePos = canvas.mapFromScene(end);
+
+            QMouseEvent pressEvent(QEvent::MouseButtonPress, pressPos, pressPos,
+                                   Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+            canvas.mousePressEvent(&pressEvent);
+
+            QMouseEvent moveEvent(QEvent::MouseMove, releasePos, releasePos,
+                                  Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+            canvas.mouseMoveEvent(&moveEvent);
+
+            QMouseEvent releaseEvent(QEvent::MouseButtonRelease, releasePos, releasePos,
+                                     Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+            canvas.mouseReleaseEvent(&releaseEvent);
+        };
+
+        createRect(QPointF(10.0, 10.0), QPointF(80.0, 60.0));
+        QCOMPARE(canvas.toolMode(), Canvas::ToolMode::CreateRect);
+
+        createRect(QPointF(120.0, 20.0), QPointF(190.0, 70.0));
+        QCOMPARE(canvas.toolMode(), Canvas::ToolMode::CreateRect);
+
+        // ESC 取消未完成的图形，并保留原有的返回 SELECT 行为。
+        const QPoint pendingPressPos = canvas.mapFromScene(QPointF(220.0, 30.0));
+        QMouseEvent pendingPress(QEvent::MouseButtonPress, pendingPressPos, pendingPressPos,
+                                 Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        canvas.mousePressEvent(&pendingPress);
+        QKeyEvent escapeEvent(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+        canvas.keyPressEvent(&escapeEvent);
+        QCOMPARE(canvas.toolMode(), Canvas::ToolMode::Select);
+
+        int rectCount = 0;
+        for (QGraphicsItem *item : canvas.scene()->items()) {
+            if (dynamic_cast<RectShape *>(item)) {
+                ++rectCount;
+            }
+        }
+        QCOMPARE(rectCount, 2);
+    }
+
     // 测试 47: 验证 MainWindow 中真正创建并绑定了中央画布与控制器
     void testMainWindowControllerCreation() {
         MainWindow mainWindow;
-        Canvas* canvas = mainWindow.canvas();
+        QVERIFY(mainWindow.centralWidget() != nullptr);
+        QCOMPARE(mainWindow.centralWidget()->objectName(), QStringLiteral("DockLayoutAnchor"));
+        auto *canvasDock = mainWindow.findChild<QDockWidget *>(QStringLiteral("CanvasDock"));
+        QVERIFY(canvasDock != nullptr);
+        QCOMPARE(canvasDock->widget(), static_cast<QWidget *>(mainWindow.canvasWidget()));
+        QVERIFY(mainWindow.htmlEditorWidget() != nullptr);
+        QVERIFY(mainWindow.diagnosticsWidget() != nullptr);
+
+        Canvas* canvas = mainWindow.canvasWidget()->canvas();
         QVERIFY(canvas != nullptr);
         QVERIFY(canvas->connectorController() != nullptr);
 
@@ -988,18 +1224,18 @@ private slots:
         QVERIFY(createdConnector->scene() == canvas.scene());
     }
 
-    // 测试 53: [A1 验证] 连线起点必须吸附到有效目标，点击空白区域直接穿透且不进入创建态
+    // 测试 53: 允许在空白区域起手画连线
     void testConnectorCreateRequiresStartAnchor() {
         Canvas canvas;
         auto* controller = canvas.connectorController();
         controller->setCreateModeActive(true);
 
-        // 场景无图形或点击在空白处
-        QVERIFY(!controller->handleMousePress(QPointF(100, 100), Qt::LeftButton, Qt::NoModifier));
-        QCOMPARE(controller->state(), ConnectorController::State::Idle);
+        // 场景无图形或点击在空白处，现在应该允许画线了
+        QVERIFY(controller->handleMousePress(QPointF(100, 100), Qt::LeftButton, Qt::NoModifier));
+        QCOMPARE(controller->state(), ConnectorController::State::Creating);
     }
 
-    // 测试 54: [A2 验证] 连线终点必须吸附到有效目标，拖向或两点点击在空白区均丢弃为废线
+    // 测试 54: 允许连线终点在空白区域结束
     void testConnectorCreateRequiresEndAnchor() {
         Canvas canvas;
         auto* controller = canvas.connectorController();
@@ -1013,6 +1249,11 @@ private slots:
         controller->handleMouseMove(QPointF(200, 200), Qt::NoModifier);
         controller->handleMouseRelease(QPointF(200, 200), Qt::LeftButton, Qt::NoModifier);
         QCOMPARE(controller->state(), ConnectorController::State::Idle);
+
+        // 移除创建的线，避免影响下一次点击测试
+        canvas.scene()->clear();
+        rect = new RectShape(QPointF(0, 0), QSizeF(50, 50));
+        canvas.scene()->addItem(rect);
 
         // 2. 两点点击第二下点在空白区域
         controller->handleMousePress(QPointF(20, 20), Qt::LeftButton, Qt::NoModifier);

@@ -11,6 +11,10 @@
 #include <QPen>
 #include <QBrush>
 #include <QPainter>
+#include <memory>
+#include <vector>
+
+#include "control_box.h" // For HandleType
 
 class Canvas;
 class Shape;
@@ -28,6 +32,7 @@ public:
     ~RubberBandItem() override = default;
 
     QRectF boundingRect() const override { return m_rect; }
+    QRectF rect() const { return m_rect; }
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override
     {
         Q_UNUSED(option); Q_UNUSED(widget);
@@ -59,6 +64,7 @@ public:
     enum class InteractionState {
         Idle,            // 空闲状态（常规选中或无操作）
         CreatingShape,   // 正在拉拽外框创建图元
+        BoxSelecting,    // 正在进行矩形多选/单选框选
         MovingItems,     // 正在鼠标拖动选中的图元集合
         KeyMovingItems   // 正在通过键盘 WASD/方向键长按加速移动图元
     };
@@ -95,6 +101,12 @@ public slots:
     void cut();
     void deleteSelected();
     void selectAll();
+    // 将当前选区整体移到所有顶层图元之前，并作为一次原子操作进入撤销栈。
+    void bringSelectedToFront();
+    // 将当前选区整体移到所有顶层图元之后，并保持选区内部原有层级顺序。
+    void sendSelectedToBack();
+    // 删除画布中的全部用户图元；与文档生命周期使用的 Canvas::clearScene 不同，本操作可撤销。
+    void clearAllItems();
 
 private slots:
     // KeyMoveEngine：按住键盘不放时的按帧加速平移回调
@@ -102,12 +114,19 @@ private slots:
     // 当所选的或追踪的 Shape 对象销毁时安全回收指针
     void onShapeDestroyed(QObject *object);
 
+private slots:
+    void onResizeFinished(Shape* target, QSizeF oldSize, QSizeF newSize, QPointF oldPos, QPointF newPos);
+    void onRotateFinished(Shape* target, qreal oldRotation, qreal newRotation);
+    void onEndpointMoveFinished(Shape* target, HandleType type, QPointF oldScenePos, QPointF newScenePos);
+    void onConnectorEndpointMoveFinished(Connector *target, HandleType endpoint, const ConnectorAnchor &oldAnchor, const ConnectorAnchor &newAnchor);
+
 private:
     // 内部私有辅助
     void setState(InteractionState state);
     void updateControlBoxTarget();
     Shape* findShapeAt(const QPointF &scenePos) const;
     Shape* createShapeInstance(const QPointF &startScenePos, const QPointF &endScenePos);
+    void updatePreviewShape(const QPointF &scenePos, Qt::KeyboardModifiers modifiers);
 
     // 依赖与子组件
     Canvas *m_canvas = nullptr;
@@ -118,6 +137,7 @@ private:
     InteractionState m_state = InteractionState::Idle;
     QSet<Shape*> m_selectedItems;
     QPointer<Shape> m_primarySelection;
+    QPointer<Shape> m_previewShape; // 正在动态绘制时的图形预览对象
 
     // --- 图形创建快照 ---
     QPointF m_createStartScenePos;
@@ -131,6 +151,10 @@ private:
     QSet<int> m_pressedKeys;               // 当前被按压不放的位移按键集合 (WASD & 方向键)
     qreal m_keyMoveSpeed = 1.0;            // 连续滑动当前的加速倍率
     QMap<Shape*, QPointF> m_keyMoveStartPositions; // 键盘按下初始瞬间图元位置，供最后的 Undo 打包用
+
+    // 进程内图元剪贴板保存独立克隆，粘贴时再次 clone，避免对象所有权交叉。
+    std::vector<std::unique_ptr<Shape>> m_shapeClipboard;
+    int m_pasteGeneration = 0;
 };
 
 #endif // CANVAS_CONTROLLER_H

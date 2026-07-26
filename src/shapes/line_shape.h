@@ -12,7 +12,7 @@ protected:
 
   // 根据两个场景端点重新计算本地端点、位置、宽度和高度。
   void syncGeometry(QPointF sceneStart, QPointF sceneEnd,
-                    bool notify = true);
+                    bool notify = true, ApplyMode mode = ApplyMode::UserEdit);
 
   // 复制线段的本地端点数据。
   void copyLineGeometryTo(LineShape &shape) const;
@@ -37,31 +37,32 @@ public:
   QPointF getStartPoint() const;
 
   // 使用场景坐标设置起点。
-  void setStartPoint(QPointF point);
+  bool setStartPoint(QPointF point, ApplyMode mode = ApplyMode::UserEdit);
 
   // 使用 x、y 场景坐标设置起点。
-  void setStartPoint(qreal x, qreal y);
+  bool setStartPoint(qreal x, qreal y, ApplyMode mode = ApplyMode::UserEdit);
 
   // 返回终点的场景坐标。
   QPointF getEndPoint() const;
 
   // 使用场景坐标设置终点。
-  void setEndPoint(QPointF point);
+  bool setEndPoint(QPointF point, ApplyMode mode = ApplyMode::UserEdit);
 
   // 使用 x、y 场景坐标设置终点。
-  void setEndPoint(qreal x, qreal y);
+  bool setEndPoint(qreal x, qreal y, ApplyMode mode = ApplyMode::UserEdit);
 
   // 一次性同时设置起点和终点，仅触发一次几何重计算与通知。
-  void setEndpoints(QPointF start, QPointF end);
+  bool setEndpoints(QPointF start, QPointF end, ApplyMode mode = ApplyMode::UserEdit);
 
   // 屏蔽虚函数 setSize，线段的宽高仅作为端点的派生结果，禁止直接修改并返回 false。
-  bool setSize(QSizeF size) override;
-  bool setSize(qreal width, qreal height) override;
+  bool setSize(QSizeF size, ApplyMode mode = ApplyMode::UserEdit) override;
+  bool setSize(qreal width, qreal height, ApplyMode mode = ApplyMode::UserEdit) override;
   bool supportsLayoutSize() const override { return false; }
+  bool supportsRotation() const override { return false; }
 
   // 屏蔽旋转与缩放，线段的方向与长短完全由两个端点主宰并返回 false。
-  bool setRotation(qreal rotation) override;
-  bool setScale(qreal scale) override;
+  bool setRotation(qreal rotation, ApplyMode mode = ApplyMode::UserEdit) override;
+  bool setScale(qreal scale, ApplyMode mode = ApplyMode::UserEdit) override;
 
 protected:
   // 屏蔽外来通过鼠标或手柄造成的非法旋转缩放

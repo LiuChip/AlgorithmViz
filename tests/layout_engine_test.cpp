@@ -12,12 +12,14 @@ class FailingShape : public RectShape {
 public:
     FailingShape(QPointF p, QSizeF s) : RectShape(p.x(), p.y(), s.width(), s.height()) { setPosition(p); }
     bool failOnSetPosition = true;
-    bool setPosition(QPointF p) override {
-        if (failOnSetPosition) return false;
+    bool setPosition(QPointF p, ApplyMode mode = ApplyMode::UserEdit) override {
+        Q_UNUSED(mode);
+        if(failOnSetPosition) return false;
         return RectShape::setPosition(p);
     }
-    bool setPosition(qreal x, qreal y) override {
-        if (failOnSetPosition) return false;
+    bool setPosition(qreal x, qreal y, ApplyMode mode = ApplyMode::UserEdit) override {
+        Q_UNUSED(mode);
+        if(failOnSetPosition) return false;
         return RectShape::setPosition(x, y);
     }
 };

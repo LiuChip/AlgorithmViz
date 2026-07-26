@@ -20,7 +20,8 @@ class Canvas : public QGraphicsView
 public:
     // 1. 工具模式扩展 (涵盖原 EditMode，并新增具体图元创建模式)
     enum class ToolMode {
-        Select,          // 选择/移动/改变大小/旋转模式
+        Select,          // 选择/移动/改变大小/旋转模式 (默认指针)
+        BoxSelect,       // 矩形框选与多选工具
         Connect,         // 连线模式 (等同于通用连线工具)
         CreateRect,      // 创建矩形
         CreateEllipse,   // 创建椭圆
@@ -46,6 +47,8 @@ public:
     EditMode editMode() const { return m_toolMode; } // 兼容接口
 
     qreal zoomScale() const { return m_zoomScale; }
+    bool isGridVisible() const { return m_gridVisible; }
+    qreal gridSpacing() const { return m_gridSpacing; }
     bool isLineCreationMode() const; // 辅助判断当前是否处于任何线工具模式下
 
     void clearScene();
@@ -60,6 +63,8 @@ public slots:
     void resetZoom();
     void fitToScene();
     void fitToSelection();
+    void setGridVisible(bool visible);
+    void toggleGrid() { setGridVisible(!m_gridVisible); }
 
     // 3. 业务指令槽 (对外对接 UI 菜单与快捷键分发)
     void undo() { if (m_undoManager) m_undoManager->undo(); }
@@ -69,12 +74,16 @@ public slots:
     void cut() { if (m_canvasController) m_canvasController->cut(); }
     void deleteSelected() { if (m_canvasController) m_canvasController->deleteSelected(); }
     void selectAll() { if (m_canvasController) m_canvasController->selectAll(); }
+    void bringSelectedToFront() { if (m_canvasController) m_canvasController->bringSelectedToFront(); }
+    void sendSelectedToBack() { if (m_canvasController) m_canvasController->sendSelectedToBack(); }
+    void clearAllItems() { if (m_canvasController) m_canvasController->clearAllItems(); }
 
 signals:
     // 4. 对外状态广播信号
     void toolModeChanged(Canvas::ToolMode mode);
     void editModeChanged(Canvas::EditMode mode); // 兼容信号
     void zoomScaleChanged(qreal scale);
+    void gridVisibilityChanged(bool visible);
     void cursorScenePositionChanged(const QPointF &pos);
     void selectionChanged();
 
@@ -86,9 +95,11 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
     void keyReleaseEvent(QKeyEvent *event) override;
+    void drawBackground(QPainter *painter, const QRectF &rect) override;
 
 private:
     void applyZoom(qreal scaleFactor, const QPoint &viewportAnchor);
+    void showContextMenu(const QPoint &pos);
 
     QGraphicsScene *m_scene = nullptr;
     ConnectorController *m_connectorController = nullptr;
@@ -97,10 +108,13 @@ private:
 
     ToolMode m_toolMode = ToolMode::Select;
     qreal m_zoomScale = 1.0;
+    bool m_gridVisible = false;
+    qreal m_gridSpacing = 20.0;
 
     // 平移画布相关状态
     bool m_isPanning = false;
     QPoint m_lastPanPoint;
+    QPoint m_panStartPoint;
 };
 
 #endif // CANVAS_H

@@ -59,12 +59,12 @@ void TextLabel::setTextLayoutMode(TextLayoutMode mode) {
   }
 }
 
-bool TextLabel::setSize(QSizeF size) {
-  return setSize(size.width(), size.height());
+bool TextLabel::setSize(QSizeF size, ApplyMode mode) {
+  return setSize(size.width(), size.height(), mode);
 }
 
-bool TextLabel::setSize(qreal width, qreal height) {
-  if (getLockStat() || !std::isfinite(width) || !std::isfinite(height) || width < 0.0 || height < 0.0) {
+bool TextLabel::setSize(qreal width, qreal height, ApplyMode mode) {
+  if ((mode == ApplyMode::UserEdit && getLockStat()) || !std::isfinite(width) || !std::isfinite(height) || width < 0.0 || height < 0.0) {
     return false;
   }
   bool modeChanged = (textLayoutMode != TextLayoutMode::FixedSize);
@@ -78,7 +78,7 @@ bool TextLabel::setSize(qreal width, qreal height) {
     return false;
   }
 
-  return Shape::setSize(width, height);
+  return Shape::setSize(width, height, mode);
 }
 
 void TextLabel::setTextInfo(TextStyle textStyle) {

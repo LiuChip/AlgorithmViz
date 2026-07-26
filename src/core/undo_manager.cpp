@@ -6,6 +6,7 @@ UndoManager::UndoManager(QObject *parent)
     connect(m_stack, &QUndoStack::canUndoChanged, this, &UndoManager::canUndoChanged);
     connect(m_stack, &QUndoStack::canRedoChanged, this, &UndoManager::canRedoChanged);
     connect(m_stack, &QUndoStack::cleanChanged, this, &UndoManager::cleanChanged);
+    connect(m_stack, &QUndoStack::indexChanged, this, [this](int) { emit historyChanged(); });
 }
 
 UndoManager::~UndoManager() = default;

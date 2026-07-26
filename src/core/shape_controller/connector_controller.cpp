@@ -1,5 +1,8 @@
 #include "connector_controller.h"
 #include "core/canvas.h"
+#include "core/undo_manager.h"
+#include "core/commands/undo_commands.h"
+#include "drawing_constraints.h"
 #include <cmath>
 
 ConnectorController::ConnectorController(Canvas* canvas, QObject* parent):QObject(parent),m_canvas(canvas)
@@ -41,6 +44,9 @@ void ConnectorController::resetOperationState()
 
 void ConnectorController::abortCreating()
 {
+    // [WARNING]: abortCreating() 直接执行 delete，只能用于尚未进入画布、未提交到
+    // Undo 栈历史的临时 Connector。绝对不可用于已在场景或历史快照中的连线，
+    // 否则会造成 QUndoStack 引用悬空指针，引发应用崩溃。
     if(m_activeConnector)
     {
         delete m_activeConnector;
@@ -61,7 +67,7 @@ void ConnectorController::setCreateModeActive(bool active)
     }
 }
 
-void ConnectorController::startDraggingEndpoint(Connector* connector, EndpointType endpoint, const QPointF& scenePos, bool ctrlPressed)
+void ConnectorController::startDraggingEndpoint(Connector* connector, EndpointType endpoint, const QPointF& scenePos, Qt::KeyboardModifiers modifiers)
 {
     if(!connector || connector->isLocked() || endpoint == EndpointType::None) return;
     m_activeConnector = connector;
@@ -75,25 +81,33 @@ void ConnectorController::startDraggingEndpoint(Connector* connector, EndpointTy
         m_backupAnchor = connector->getEndAnchor();
     }
     m_state = State::DraggingEndpoint;
-    updateDraggingEndpoint(scenePos, ctrlPressed);
+    updateDraggingEndpoint(scenePos, modifiers);
 }
 
-void ConnectorController::updateDraggingEndpoint(const QPointF& scenePos, bool ctrlPressed)
+void ConnectorController::updateDraggingEndpoint(const QPointF& scenePos, Qt::KeyboardModifiers modifiers)
 {
     if(!m_activeConnector || m_activeConnector->isLocked() || m_activeEndpointType == EndpointType::None)
     {
         resetOperationState();
         return;
     }
+
+    const QPointF fixedPoint = (m_activeEndpointType == EndpointType::Start)
+        ? m_activeConnector->getEndAnchor().resolveScenePoint()
+        : m_activeConnector->getStartAnchor().resolveScenePoint();
+    const QPointF effectiveScenePos = modifiers.testFlag(Qt::ShiftModifier)
+        ? DrawingConstraints::constrainLineEndpoint(fixedPoint, scenePos)
+        : scenePos;
+
     ConnectorAnchor newAnchor;
-    if(ctrlPressed)
+    if(modifiers.testFlag(Qt::ControlModifier))
     {
-        newAnchor = ConnectorAnchor::createFree(scenePos);
+        newAnchor = ConnectorAnchor::createFree(effectiveScenePos);
     }
     else
     {
         AnchorResolver::ResolveOptions options;
-        options.scenePoint = scenePos;
+        options.scenePoint = effectiveScenePos;
         options.scene = m_canvas ? m_canvas->scene() : nullptr;
         options.ctrlPressed = false;
         options.viewScale = getSafeViewScale();
@@ -117,17 +131,24 @@ void ConnectorController::updateDraggingEndpoint(const QPointF& scenePos, bool c
     updateSnapIndicator(newAnchor);
 }
 
-void ConnectorController::finishDraggingEndpoint(const QPointF& scenePos, bool ctrlPressed)
+void ConnectorController::finishDraggingEndpoint(const QPointF& scenePos, Qt::KeyboardModifiers modifiers)
 {
     if(!m_activeConnector || m_activeConnector->isLocked() || m_activeEndpointType == EndpointType::None)
     {
         resetOperationState();
         return;
     }
+    const QPointF fixedPoint = (m_activeEndpointType == EndpointType::Start)
+        ? m_activeConnector->getEndAnchor().resolveScenePoint()
+        : m_activeConnector->getStartAnchor().resolveScenePoint();
+    const QPointF effectiveScenePos = modifiers.testFlag(Qt::ShiftModifier)
+        ? DrawingConstraints::constrainLineEndpoint(fixedPoint, scenePos)
+        : scenePos;
+
     AnchorResolver::ResolveOptions options;
-    options.scenePoint = scenePos;
+    options.scenePoint = effectiveScenePos;
     options.scene = m_canvas ? m_canvas->scene() : nullptr;
-    options.ctrlPressed = ctrlPressed;
+    options.ctrlPressed = modifiers.testFlag(Qt::ControlModifier);
     options.viewScale = getSafeViewScale();
     options.ignoreShape = nullptr;
     ConnectorAnchor finalAnchor = AnchorResolver::resolve(options);
@@ -152,9 +173,17 @@ void ConnectorController::finishDraggingEndpoint(const QPointF& scenePos, bool c
     qreal len = QLineF(startPt, endPt).length();
 
     if (len < 2.0 / getSafeViewScale()) {
-        delete m_activeConnector;
-        m_activeConnector = nullptr;
+        // Revert to backup anchor if the new length is too short.
+        if (m_activeEndpointType == EndpointType::Start) {
+            m_activeConnector->setStartAnchor(m_backupAnchor);
+        } else {
+            m_activeConnector->setEndAnchor(m_backupAnchor);
+        }
     } else {
+        if (m_canvas && m_canvas->undoManager()) {
+            ModifyConnectorCommand::Endpoint ep = (m_activeEndpointType == EndpointType::Start) ? ModifyConnectorCommand::Endpoint::Start : ModifyConnectorCommand::Endpoint::End;
+            m_canvas->undoManager()->push(new ModifyConnectorCommand(m_activeConnector, ep, m_backupAnchor, finalAnchor));
+        }
         emit connectorModified(m_activeConnector);
     }
 
@@ -294,23 +323,30 @@ void ConnectorController::hideSnapIndicator()
     }
 }
 
-void ConnectorController::startCreating(const QPointF& scenePos, bool ctrlPressed)
+void ConnectorController::startCreating(const QPointF& scenePos, Qt::KeyboardModifiers modifiers)
 {
     m_createStartScenePos = scenePos;
     AnchorResolver::ResolveOptions options;
     options.scenePoint = scenePos;
     options.scene = m_canvas ? m_canvas->scene() : nullptr;
-    options.ctrlPressed = ctrlPressed;
+    options.ctrlPressed = modifiers.testFlag(Qt::ControlModifier);
     options.viewScale = getSafeViewScale();
     options.ignoreShape = nullptr;
     ConnectorAnchor startAnchor = AnchorResolver::resolve(options);
-    if (startAnchor.mode() == ConnectorAnchor::Mode::Free) {
-        abortCreating();
-        return;
-    }
     m_activeConnector = new Connector(startAnchor.resolveScenePoint(), startAnchor.resolveScenePoint());
-    if (m_canvas && m_canvas->scene()) {
-        m_canvas->scene()->addItem(m_activeConnector);
+    if (m_canvas) {
+        // 创建工具决定连线的初始端点样式。普通 Line 必须显式设为 None，
+        // 不能依赖 Connector 的构造默认值，否则历史默认值变化会污染工具语义。
+        Connector::EndStyle style = Connector::EndStyle::None;
+        if (m_canvas->toolMode() == Canvas::ToolMode::CreateArrow) {
+            style = Connector::EndStyle::Arrow;
+        } else if (m_canvas->toolMode() == Canvas::ToolMode::CreateDualArrow) {
+            style = Connector::EndStyle::DualArrow;
+        }
+        m_activeConnector->setEndStyle(style);
+        if (m_canvas->scene()) {
+            m_canvas->scene()->addItem(m_activeConnector);
+        }
     }
     if (!m_activeConnector->setStartAnchor(startAnchor) || !m_activeConnector->setEndAnchor(startAnchor)) {
         abortCreating();
@@ -320,16 +356,22 @@ void ConnectorController::startCreating(const QPointF& scenePos, bool ctrlPresse
     m_state = State::Creating;
 }
 
-void ConnectorController::updateCreating(const QPointF& scenePos, bool ctrlPressed)
+void ConnectorController::updateCreating(const QPointF& scenePos, Qt::KeyboardModifiers modifiers)
 {
     if (!m_activeConnector || m_activeConnector->isLocked()) {
         abortCreating();
         return;
     }
+
+    const QPointF startPoint = m_activeConnector->getStartAnchor().resolveScenePoint();
+    const QPointF effectiveScenePos = modifiers.testFlag(Qt::ShiftModifier)
+        ? DrawingConstraints::constrainLineEndpoint(startPoint, scenePos)
+        : scenePos;
+
     AnchorResolver::ResolveOptions options;
-    options.scenePoint = scenePos;
+    options.scenePoint = effectiveScenePos;
     options.scene = m_canvas ? m_canvas->scene() : nullptr;
-    options.ctrlPressed = ctrlPressed;
+    options.ctrlPressed = modifiers.testFlag(Qt::ControlModifier);
     options.viewScale = getSafeViewScale();
     options.ignoreShape = nullptr;
     ConnectorAnchor endAnchor = AnchorResolver::resolve(options);
@@ -340,7 +382,7 @@ void ConnectorController::updateCreating(const QPointF& scenePos, bool ctrlPress
     updateSnapIndicator(endAnchor);
 }
 
-void ConnectorController::finishCreating(const QPointF& scenePos, bool ctrlPressed)
+void ConnectorController::finishCreating(const QPointF& scenePos, Qt::KeyboardModifiers modifiers)
 {
     if (!m_activeConnector || m_activeConnector->isLocked()) {
         abortCreating();
@@ -350,18 +392,22 @@ void ConnectorController::finishCreating(const QPointF& scenePos, bool ctrlPress
     qreal dist = QLineF(scenePos, m_createStartScenePos).length();
     if(dist <= 8.0 / getSafeViewScale()) return;
 
+    const QPointF startPoint = m_activeConnector->getStartAnchor().resolveScenePoint();
+    const QPointF effectiveScenePos = modifiers.testFlag(Qt::ShiftModifier)
+        ? DrawingConstraints::constrainLineEndpoint(startPoint, scenePos)
+        : scenePos;
+
     AnchorResolver::ResolveOptions options;
-    options.scenePoint = scenePos;
+    options.scenePoint = effectiveScenePos;
     options.scene = m_canvas ? m_canvas->scene() : nullptr;
-    options.ctrlPressed = ctrlPressed;
+    options.ctrlPressed = modifiers.testFlag(Qt::ControlModifier);
     options.viewScale = getSafeViewScale();
     options.ignoreShape = nullptr;
     ConnectorAnchor endAnchor = AnchorResolver::resolve(options);
 
     QPointF startPt = m_activeConnector->getStartAnchor().resolveScenePoint();
     bool isTrashLine = false;
-    if(endAnchor.mode() == ConnectorAnchor::Mode::Free ||
-       QLineF(endAnchor.resolveScenePoint(), startPt).length() < 5.0 / getSafeViewScale() ||
+    if(QLineF(endAnchor.resolveScenePoint(), startPt).length() < 5.0 / getSafeViewScale() ||
        isSelfConnection(m_activeConnector->getStartAnchor(), endAnchor))
     {
         isTrashLine = true;
@@ -375,6 +421,11 @@ void ConnectorController::finishCreating(const QPointF& scenePos, bool ctrlPress
         abortCreating();
         return;
     }
+
+    if (m_canvas && m_canvas->undoManager()) {
+        m_canvas->undoManager()->push(new CreateConnectorCommand(m_activeConnector, m_canvas->scene()));
+    }
+
     emit connectorCreated(m_activeConnector);
     resetOperationState();
 }
@@ -417,7 +468,7 @@ bool ConnectorController::handleMousePress(const QPointF& scenePos, Qt::MouseBut
 
     if(m_state == State::Creating)
     {
-        finishCreating(scenePos, modifiers & Qt::ControlModifier);
+        finishCreating(scenePos, modifiers);
         // 如果成功完成了两点点击连线（状态回到了 Idle），标记吸收下一次同一操作流对应的鼠标释放
         if(m_state == State::Idle) {
             m_consumeNextRelease = true;
@@ -425,30 +476,19 @@ bool ConnectorController::handleMousePress(const QPointF& scenePos, Qt::MouseBut
         return true;
     }
 
-    bool ctrlPressed = modifiers & Qt::ControlModifier;
     Connector* hitConnector = nullptr;
     EndpointType hitEndpoint = EndpointType::None;
     if(hitTestConnectorEndpoint(scenePos, hitConnector, hitEndpoint))
     {
         if(!hitConnector->isLocked())
         {
-            startDraggingEndpoint(hitConnector, hitEndpoint, scenePos, ctrlPressed);
+            startDraggingEndpoint(hitConnector, hitEndpoint, scenePos, modifiers);
             return true;
         }
     }
     else if(m_createModeActive)
     {
-        AnchorResolver::ResolveOptions options;
-        options.scenePoint = scenePos;
-        options.scene = m_canvas ? m_canvas->scene() : nullptr;
-        options.ctrlPressed = ctrlPressed;
-        options.viewScale = getSafeViewScale();
-        options.ignoreShape = nullptr;
-        ConnectorAnchor startAnchor = AnchorResolver::resolve(options);
-        if (startAnchor.mode() == ConnectorAnchor::Mode::Free) {
-            return false; // A1: 起点未吸附到锚点不启动创建，事件穿透！
-        }
-        startCreating(scenePos, ctrlPressed);
+        startCreating(scenePos, modifiers);
         if (m_state == State::Creating) {
             return true;
         }
@@ -462,13 +502,28 @@ bool ConnectorController::handleMouseMove(const QPointF& scenePos, Qt::KeyboardM
     m_lastScenePos = scenePos;
     if(m_state == State::Creating)
     {
-        updateCreating(scenePos, modifiers & Qt::ControlModifier);
+        updateCreating(scenePos, modifiers);
         return true;
     }
     else if(m_state == State::DraggingEndpoint)
     {
-        updateDraggingEndpoint(scenePos, modifiers & Qt::ControlModifier);
+        updateDraggingEndpoint(scenePos, modifiers);
         return true;
+    }
+    else if(m_createModeActive && m_state == State::Idle)
+    {
+        AnchorResolver::ResolveOptions options;
+        options.scenePoint = scenePos;
+        options.scene = m_canvas ? m_canvas->scene() : nullptr;
+        options.ctrlPressed = modifiers.testFlag(Qt::ControlModifier);
+        options.viewScale = getSafeViewScale();
+        options.ignoreShape = nullptr;
+        ConnectorAnchor hoverAnchor = AnchorResolver::resolve(options);
+        if (hoverAnchor.mode() != ConnectorAnchor::Mode::Free) {
+            updateSnapIndicator(hoverAnchor);
+        } else {
+            hideSnapIndicator();
+        }
     }
     return false;
 }
@@ -487,12 +542,12 @@ bool ConnectorController::handleMouseRelease(const QPointF& scenePos, Qt::MouseB
 
     if(m_state == State::Creating)
     {
-        finishCreating(scenePos, modifiers & Qt::ControlModifier);
+        finishCreating(scenePos, modifiers);
         return true;
     }
     else if(m_state == State::DraggingEndpoint)
     {
-        finishDraggingEndpoint(scenePos, modifiers & Qt::ControlModifier);
+        finishDraggingEndpoint(scenePos, modifiers);
         return true;
     }
     return false;
@@ -500,8 +555,7 @@ bool ConnectorController::handleMouseRelease(const QPointF& scenePos, Qt::MouseB
 
 bool ConnectorController::handleKeyPress(int key, Qt::KeyboardModifiers modifiers)
 {
-    (void)modifiers;
-    // 按下 ESC 键直接放弃并中止
+    // 按下 ESC 键直接放弃并中止，保留绘图工具本身的激活状态。
     if (key == Qt::Key_Escape) {
         if (m_state != State::Idle) {
             cancelCurrentOperation();
@@ -509,13 +563,16 @@ bool ConnectorController::handleKeyPress(int key, Qt::KeyboardModifiers modifier
         }
     }
 
-    // 实时监听 Ctrl 按键的按下，动态取消吸附（使用最近一次处理的场景坐标）
-    if (key == Qt::Key_Control) {
+    // 修饰键变化时立即重算预览；鼠标事件仍会持续提供完整 modifiers，
+    // 这里主要覆盖“按下修饰键后尚未移动鼠标”的瞬间反馈。
+    if (key == Qt::Key_Control || key == Qt::Key_Shift) {
+        Qt::KeyboardModifiers updatedModifiers = modifiers;
+        updatedModifiers |= (key == Qt::Key_Control) ? Qt::ControlModifier : Qt::ShiftModifier;
         if (m_state == State::Creating && m_canvas) {
-            updateCreating(m_lastScenePos, true);
+            updateCreating(m_lastScenePos, updatedModifiers);
             return true;
         } else if (m_state == State::DraggingEndpoint && m_canvas) {
-            updateDraggingEndpoint(m_lastScenePos, true);
+            updateDraggingEndpoint(m_lastScenePos, updatedModifiers);
             return true;
         }
     }
@@ -524,16 +581,20 @@ bool ConnectorController::handleKeyPress(int key, Qt::KeyboardModifiers modifier
 
 bool ConnectorController::handleKeyRelease(int key, Qt::KeyboardModifiers modifiers)
 {
-    (void)modifiers;
-    // 实时监听 Ctrl 按键的释放，动态恢复吸附（使用最近一次处理的场景坐标）
+    if (key != Qt::Key_Control && key != Qt::Key_Shift) return false;
+
+    Qt::KeyboardModifiers updatedModifiers = modifiers;
     if (key == Qt::Key_Control) {
-        if (m_state == State::Creating && m_canvas) {
-            updateCreating(m_lastScenePos, false);
-            return true;
-        } else if (m_state == State::DraggingEndpoint && m_canvas) {
-            updateDraggingEndpoint(m_lastScenePos, false);
-            return true;
-        }
+        updatedModifiers &= ~Qt::ControlModifier;
+    } else {
+        updatedModifiers &= ~Qt::ShiftModifier;
+    }
+    if (m_state == State::Creating && m_canvas) {
+        updateCreating(m_lastScenePos, updatedModifiers);
+        return true;
+    } else if (m_state == State::DraggingEndpoint && m_canvas) {
+        updateDraggingEndpoint(m_lastScenePos, updatedModifiers);
+        return true;
     }
     return false;
 }

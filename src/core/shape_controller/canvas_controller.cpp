@@ -9,6 +9,12 @@
 #include "shapes/arrow_shape.h"
 #include "shapes/dual_arrow_shape.h"
 #include "shapes/text_label.h"
+#include "shapes/connector/connector.h"
+#include "drawing_constraints.h"
+
+#include "core/commands/undo_commands.h"
+#include "core/undo_manager.h"
+#include "export/scene_export_utils.h"
 
 #include <QMouseEvent>
 #include <QKeyEvent>
@@ -17,15 +23,19 @@
 #include <QBrush>
 #include <QApplication>
 #include <cmath>
+#include <algorithm>
+#include <limits>
 
 CanvasController::CanvasController(Canvas *canvas, QObject *parent)
     : QObject(parent), m_canvas(canvas)
 {
     m_controlBox = new ControlBox();
+    m_controlBox->setData(SceneExport::ExcludeFromExportRole, true);
     m_controlBox->setZValue(99999.0);
     m_controlBox->setVisible(false);
 
     m_rubberBandItem = new RubberBandItem();
+    m_rubberBandItem->setData(SceneExport::ExcludeFromExportRole, true);
     QPen dashedPen(QColor(0, 120, 215), 1.0, Qt::DashLine);
     dashedPen.setCosmetic(true);
     m_rubberBandItem->setPen(dashedPen);
@@ -56,11 +66,13 @@ void CanvasController::ensureOverlayItems()
 {
     if (!m_controlBox) {
         m_controlBox = new ControlBox();
+        m_controlBox->setData(SceneExport::ExcludeFromExportRole, true);
         m_controlBox->setZValue(99999.0);
         m_controlBox->setVisible(false);
     }
     if (!m_rubberBandItem) {
         m_rubberBandItem = new RubberBandItem();
+        m_rubberBandItem->setData(SceneExport::ExcludeFromExportRole, true);
         QPen dashedPen(QColor(0, 120, 215), 1.0, Qt::DashLine);
         dashedPen.setCosmetic(true);
         m_rubberBandItem->setPen(dashedPen);
@@ -239,11 +251,47 @@ Shape* CanvasController::createShapeInstance(const QPointF &startScenePos, const
         if (!isClickCreate) {
             shape->setSize(rect.width(), rect.height());
         }
-        break;
     default:
         break;
     }
+    if (shape) {
+        // 设置默认属性：有边框（默认宽度2.0，实线，深冷灰），无填充（透明背景）
+        shape->setBorderInfo(Border(2.0, QColor("#303133"), Qt::SolidLine));
+        shape->setFillInfo(FillStyle(Qt::transparent, 1.0));
+    }
     return shape;
+}
+
+void CanvasController::updatePreviewShape(const QPointF &scenePos,
+                                             Qt::KeyboardModifiers modifiers)
+{
+    if (!m_previewShape) return;
+
+    const bool constrain = modifiers.testFlag(Qt::ShiftModifier);
+    if (LineShape *lineShape = dynamic_cast<LineShape *>(m_previewShape.data())) {
+        const QPointF endPoint = constrain
+            ? DrawingConstraints::constrainLineEndpoint(m_createStartScenePos, scenePos)
+            : scenePos;
+        lineShape->setEndpoints(m_createStartScenePos, endPoint);
+        return;
+    }
+
+    // Shift 仅约束真正的几何图形；TextLabel 的尺寸由文本内容/固定文本框语义决定，
+    // 不把它误变成正方形文本框。
+    const Canvas::ToolMode mode = m_canvas ? m_canvas->toolMode() : Canvas::ToolMode::Select;
+    const bool constrainShape = constrain &&
+        (mode == Canvas::ToolMode::CreateRect ||
+         mode == Canvas::ToolMode::CreateEllipse ||
+         mode == Canvas::ToolMode::CreateDiamond);
+
+    QRectF rect = DrawingConstraints::makeDragRect(m_createStartScenePos, scenePos, constrainShape);
+    if (rect.width() < 1.0) rect.setWidth(1.0);
+    if (rect.height() < 1.0) rect.setHeight(1.0);
+
+    // Shape::setSize() 保持场景中心不变并可能调整 pos()；先应用尺寸，再校准左上角，
+    // 这样预览不会因为中心保持策略在鼠标移动时跳动。
+    m_previewShape->setSize(rect.size());
+    m_previewShape->setPosition(rect.topLeft());
 }
 
 bool CanvasController::handleMousePressEvent(QMouseEvent *event)
@@ -251,21 +299,18 @@ bool CanvasController::handleMousePressEvent(QMouseEvent *event)
     if (!m_canvas || !event || event->button() != Qt::LeftButton) return false;
     const QPointF scenePos = m_canvas->mapToScene(event->pos());
 
-    if (m_canvas->toolMode() != Canvas::ToolMode::Select && m_canvas->toolMode() != Canvas::ToolMode::Connect) {
+    if (m_canvas->toolMode() != Canvas::ToolMode::Select && m_canvas->toolMode() != Canvas::ToolMode::BoxSelect && m_canvas->toolMode() != Canvas::ToolMode::Connect) {
         setState(InteractionState::CreatingShape);
         m_createStartScenePos = scenePos;
-        if (m_rubberBandItem) {
-            if (m_canvas->scene() && !m_rubberBandItem->scene()) {
-                m_canvas->scene()->addItem(m_rubberBandItem);
-            }
-            m_rubberBandItem->setRect(QRectF(scenePos, QSizeF(0, 0)));
-            m_rubberBandItem->setVisible(true);
+        m_previewShape = createShapeInstance(scenePos, scenePos);
+        if (m_previewShape && m_canvas->scene()) {
+            m_canvas->scene()->addItem(m_previewShape);
         }
         event->accept();
         return true;
     }
 
-    if (m_canvas->toolMode() == Canvas::ToolMode::Select) {
+    if (m_canvas->toolMode() == Canvas::ToolMode::Select || m_canvas->toolMode() == Canvas::ToolMode::BoxSelect) {
         Shape *clickedShape = findShapeAt(scenePos);
         if (clickedShape) {
             bool isCtrlPressed = (event->modifiers() & Qt::ControlModifier);
@@ -305,6 +350,19 @@ bool CanvasController::handleMousePressEvent(QMouseEvent *event)
             if (!(event->modifiers() & Qt::ControlModifier)) {
                 clearSelection();
             }
+            if (m_canvas->toolMode() == Canvas::ToolMode::BoxSelect) {
+                setState(InteractionState::BoxSelecting);
+                m_createStartScenePos = scenePos;
+                if (m_rubberBandItem) {
+                    if (m_canvas->scene() && !m_rubberBandItem->scene()) {
+                        m_canvas->scene()->addItem(m_rubberBandItem);
+                    }
+                    m_rubberBandItem->setRect(QRectF(scenePos, QSizeF(0, 0)));
+                    m_rubberBandItem->setVisible(true);
+                }
+                event->accept();
+                return true;
+            }
         }
     }
 
@@ -316,7 +374,13 @@ bool CanvasController::handleMouseMoveEvent(QMouseEvent *event)
     if (!m_canvas || !event) return false;
     const QPointF scenePos = m_canvas->mapToScene(event->pos());
 
-    if (m_state == InteractionState::CreatingShape && m_rubberBandItem) {
+    if (m_state == InteractionState::CreatingShape) {
+        updatePreviewShape(scenePos, event->modifiers());
+        event->accept();
+        return true;
+    }
+
+    if (m_state == InteractionState::BoxSelecting && m_rubberBandItem) {
         QRectF rect(m_createStartScenePos, scenePos);
         m_rubberBandItem->setRect(rect.normalized());
         event->accept();
@@ -342,17 +406,53 @@ bool CanvasController::handleMouseMoveEvent(QMouseEvent *event)
 bool CanvasController::handleMouseReleaseEvent(QMouseEvent *event)
 {
     if (!m_canvas || !event || event->button() != Qt::LeftButton) return false;
-    const QPointF scenePos = m_canvas->mapToScene(event->pos());
 
     if (m_state == InteractionState::CreatingShape) {
+        const QPointF scenePos = m_canvas->mapToScene(event->pos());
+        updatePreviewShape(scenePos, event->modifiers());
+        if (m_previewShape) {
+            if (LineShape* l = dynamic_cast<LineShape*>(m_previewShape.data())) {
+                if ((l->getStartPoint() - l->getEndPoint()).manhattanLength() < 5.0) {
+                    l->setEndPoint(l->getStartPoint() + QPointF(120.0, 0.0));
+                }
+            } else {
+                QSizeF sz = m_previewShape->getSize();
+                if (sz.width() < 5.0 && sz.height() < 5.0) {
+                    const bool constrain = event->modifiers().testFlag(Qt::ShiftModifier);
+                    const qreal defaultSide = constrain ? 100.0 : 0.0;
+                    m_previewShape->setSize(constrain ? defaultSide : 100.0,
+                                             constrain ? defaultSide : 60.0);
+                }
+            }
+            Shape *createdShape = m_previewShape.data();
+            selectItem(createdShape, true);
+            m_previewShape = nullptr;
+            if (createdShape && m_canvas && m_canvas->undoManager())
+                m_canvas->undoManager()->push(
+                    new CreateShapeCommand(createdShape, m_canvas->scene()));
+        }
+        // 创建完成后保持当前绘图工具激活，允许用户连续创建同类图形。
+        // 只有用户主动选择 SELECT/其他工具时，才应离开当前绘图模式。
+        setState(InteractionState::Idle);
+        event->accept();
+        return true;
+    }
+
+    if (m_state == InteractionState::BoxSelecting) {
         if (m_rubberBandItem) {
             m_rubberBandItem->setVisible(false);
-        }
-        Shape *newShape = createShapeInstance(m_createStartScenePos, scenePos);
-        if (newShape && m_canvas->scene()) {
-            m_canvas->scene()->addItem(newShape);
-            selectItem(newShape, true);
-            // TODO(Task 10b): 将创建图元包装为 AddShapeCommand
+            if (m_canvas && m_canvas->scene()) {
+                QRectF selRect = m_rubberBandItem->rect();
+                QList<QGraphicsItem*> foundItems = m_canvas->scene()->items(selRect, Qt::IntersectsItemShape);
+                if (!(event->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier))) {
+                    clearSelection();
+                }
+                for (QGraphicsItem* item : foundItems) {
+                    if (Shape* s = dynamic_cast<Shape*>(item)) {
+                        selectItem(s, false);
+                    }
+                }
+            }
         }
         setState(InteractionState::Idle);
         event->accept();
@@ -361,7 +461,22 @@ bool CanvasController::handleMouseReleaseEvent(QMouseEvent *event)
 
     if (m_state == InteractionState::MovingItems) {
         setState(InteractionState::Idle);
-        // TODO(Task 10b): 包装为 MoveItemsCommand
+        if (m_canvas && m_canvas->undoManager()) {
+            QList<MoveItemsCommand::MoveData> moves;
+            for (auto it = m_dragStartPositions.constBegin(); it != m_dragStartPositions.constEnd(); ++it) {
+                Shape* shape = it.key();
+                if (shape) {
+                    QPointF oldPos = it.value();
+                    QPointF newPos = shape->pos();
+                    if (!qFuzzyCompare(oldPos.x(), newPos.x()) || !qFuzzyCompare(oldPos.y(), newPos.y())) {
+                        moves.append({shape, oldPos, newPos});
+                    }
+                }
+            }
+            if (!moves.isEmpty()) {
+                m_canvas->undoManager()->push(new MoveItemsCommand(moves));
+            }
+        }
         m_dragStartPositions.clear();
         event->accept();
         return true;
@@ -413,7 +528,22 @@ bool CanvasController::handleKeyReleaseEvent(QKeyEvent *event)
             m_keyMoveTimer->stop();
         }
         setState(InteractionState::Idle);
-        // TODO(Task 10b): 包装为 MoveItemsCommand
+        if (m_canvas && m_canvas->undoManager()) {
+            QList<MoveItemsCommand::MoveData> moves;
+            for (auto it = m_keyMoveStartPositions.constBegin(); it != m_keyMoveStartPositions.constEnd(); ++it) {
+                Shape* shape = it.key();
+                if (shape) {
+                    QPointF oldPos = it.value();
+                    QPointF newPos = shape->pos();
+                    if (!qFuzzyCompare(oldPos.x(), newPos.x()) || !qFuzzyCompare(oldPos.y(), newPos.y())) {
+                        moves.append({shape, oldPos, newPos});
+                    }
+                }
+            }
+            if (!moves.isEmpty()) {
+                m_canvas->undoManager()->push(new MoveItemsCommand(moves));
+            }
+        }
         m_keyMoveStartPositions.clear();
         m_keyMoveSpeed = 1.0;
     }
@@ -459,6 +589,14 @@ void CanvasController::onKeyMoveTick()
 void CanvasController::cancelCurrentOperation()
 {
     if (m_state == InteractionState::CreatingShape) {
+        if (m_previewShape && m_canvas && m_canvas->scene()) {
+            m_canvas->scene()->removeItem(m_previewShape);
+            delete m_previewShape;
+            m_previewShape = nullptr;
+        }
+        if (m_rubberBandItem) m_rubberBandItem->setVisible(false);
+        setState(InteractionState::Idle);
+    } else if (m_state == InteractionState::BoxSelecting) {
         if (m_rubberBandItem) m_rubberBandItem->setVisible(false);
         setState(InteractionState::Idle);
     } else if (m_state == InteractionState::MovingItems) {
@@ -487,10 +625,63 @@ void CanvasController::cancelCurrentOperation()
 
 void CanvasController::copy()
 {
+    m_shapeClipboard.clear();
+    m_pasteGeneration = 0;
+
+    QList<Shape *> ordered = m_selectedItems.values();
+    std::sort(ordered.begin(), ordered.end(), [](const Shape *left, const Shape *right) {
+        return left && right && left->getLayer() < right->getLayer();
+    });
+    for (Shape *shape : ordered) {
+        if (shape)
+            m_shapeClipboard.emplace_back(shape->clone());
+    }
 }
 
 void CanvasController::paste()
 {
+    if (m_shapeClipboard.empty() || !m_canvas || !m_canvas->scene() ||
+        !m_canvas->undoManager())
+        return;
+
+    ++m_pasteGeneration;
+    const QPointF offset(20.0 * m_pasteGeneration,
+                         20.0 * m_pasteGeneration);
+    auto *transaction = new QUndoCommand(QStringLiteral("Paste Items"));
+    QList<Shape *> pastedShapes;
+
+    for (const std::unique_ptr<Shape> &prototype : m_shapeClipboard) {
+        if (!prototype)
+            continue;
+        Shape *copyShape = prototype->clone();
+        if (auto *line = dynamic_cast<LineShape *>(copyShape)) {
+            line->setEndpoints(line->getStartPoint() + offset,
+                               line->getEndPoint() + offset,
+                               ApplyMode::HistoryReplay);
+        } else if (auto *connector = dynamic_cast<Connector *>(copyShape)) {
+            connector->setStartAnchor(ConnectorAnchor::createFree(
+                                          connector->getStartAnchor().resolveScenePoint() + offset),
+                                      ApplyMode::HistoryReplay);
+            connector->setEndAnchor(ConnectorAnchor::createFree(
+                                        connector->getEndAnchor().resolveScenePoint() + offset),
+                                    ApplyMode::HistoryReplay);
+        } else {
+            copyShape->setPosition(copyShape->getPosition() + offset,
+                                   ApplyMode::HistoryReplay);
+        }
+        new CreateShapeCommand(copyShape, m_canvas->scene(), transaction);
+        pastedShapes.append(copyShape);
+    }
+
+    if (pastedShapes.isEmpty()) {
+        delete transaction;
+        return;
+    }
+
+    m_canvas->undoManager()->push(transaction);
+    clearSelection();
+    for (Shape *shape : pastedShapes)
+        selectItem(shape, false);
 }
 
 void CanvasController::cut()
@@ -501,14 +692,101 @@ void CanvasController::cut()
 
 void CanvasController::deleteSelected()
 {
-    if (m_selectedItems.isEmpty()) return;
-    QList<Shape*> toDelete = m_selectedItems.values();
+    if (m_selectedItems.isEmpty() || !m_canvas || !m_canvas->scene())
+        return;
+    const QList<Shape *> toDelete = m_selectedItems.values();
     clearSelection();
-    for (Shape *s : toDelete) {
-        if (s) {
-            s->deleteLater();
-        }
+    if (m_canvas->undoManager())
+        m_canvas->undoManager()->push(
+            new DeleteItemsCommand(toDelete, m_canvas->scene()));
+}
+
+void CanvasController::bringSelectedToFront()
+{
+    if (m_selectedItems.isEmpty() || !m_canvas || !m_canvas->scene() ||
+        !m_canvas->undoManager())
+        return;
+
+    QList<Shape *> shapes = m_selectedItems.values();
+    shapes.erase(std::remove(shapes.begin(), shapes.end(), nullptr), shapes.end());
+    if (shapes.isEmpty())
+        return;
+
+    int maximumLayer = shapes.first()->getLayer();
+    for (QGraphicsItem *item : m_canvas->scene()->items()) {
+        if (auto *shape = dynamic_cast<Shape *>(item); shape && !shape->parentItem())
+            maximumLayer = std::max(maximumLayer, shape->getLayer());
     }
+
+    std::sort(shapes.begin(), shapes.end(), [](const Shape *left, const Shape *right) {
+        return left->getLayer() < right->getLayer();
+    });
+    const qint64 firstLayer = static_cast<qint64>(maximumLayer) + 1;
+    const qint64 lastLayer = firstLayer + static_cast<qint64>(shapes.size()) - 1;
+    if (lastLayer > std::numeric_limits<int>::max())
+        return;
+
+    auto *transaction = new QUndoCommand(QStringLiteral("Bring Shapes to Front"));
+    int nextLayer = static_cast<int>(firstLayer);
+    for (Shape *shape : shapes) {
+        new ShapePropertyCommand(shape, ShapePropertyCommand::Property::Layer,
+                                 shape->getLayer(), nextLayer++,
+                                 QStringLiteral("Bring to Front"), transaction);
+    }
+    m_canvas->undoManager()->push(transaction);
+}
+
+void CanvasController::sendSelectedToBack()
+{
+    if (m_selectedItems.isEmpty() || !m_canvas || !m_canvas->scene() ||
+        !m_canvas->undoManager())
+        return;
+
+    QList<Shape *> shapes = m_selectedItems.values();
+    shapes.erase(std::remove(shapes.begin(), shapes.end(), nullptr), shapes.end());
+    if (shapes.isEmpty())
+        return;
+
+    int minimumLayer = shapes.first()->getLayer();
+    for (QGraphicsItem *item : m_canvas->scene()->items()) {
+        if (auto *shape = dynamic_cast<Shape *>(item); shape && !shape->parentItem())
+            minimumLayer = std::min(minimumLayer, shape->getLayer());
+    }
+
+    std::sort(shapes.begin(), shapes.end(), [](const Shape *left, const Shape *right) {
+        return left->getLayer() < right->getLayer();
+    });
+    const qint64 firstLayer = static_cast<qint64>(minimumLayer)
+        - static_cast<qint64>(shapes.size());
+    if (firstLayer < std::numeric_limits<int>::min())
+        return;
+
+    auto *transaction = new QUndoCommand(QStringLiteral("Send Shapes to Back"));
+    int nextLayer = static_cast<int>(firstLayer);
+    for (Shape *shape : shapes) {
+        new ShapePropertyCommand(shape, ShapePropertyCommand::Property::Layer,
+                                 shape->getLayer(), nextLayer++,
+                                 QStringLiteral("Send to Back"), transaction);
+    }
+    m_canvas->undoManager()->push(transaction);
+}
+
+void CanvasController::clearAllItems()
+{
+    if (!m_canvas || !m_canvas->scene() || !m_canvas->undoManager())
+        return;
+
+    QList<Shape *> shapes;
+    for (QGraphicsItem *item : m_canvas->scene()->items()) {
+        if (auto *shape = dynamic_cast<Shape *>(item); shape && !shape->parentItem())
+            shapes.append(shape);
+    }
+    if (shapes.isEmpty())
+        return;
+
+    cancelCurrentOperation();
+    clearSelection();
+    m_canvas->undoManager()->push(new DeleteItemsCommand(shapes, m_canvas->scene()));
 }
 
 void CanvasController::selectAll()
@@ -529,4 +807,56 @@ void CanvasController::selectAll()
         m_primarySelection = *m_selectedItems.begin();
     }
     updateControlBoxTarget();
+}
+
+void CanvasController::onResizeFinished(Shape* target, QSizeF oldSize, QSizeF newSize, QPointF oldPos, QPointF newPos)
+{
+    if (!target || !m_canvas || !m_canvas->undoManager()) return;
+    if (oldSize != newSize || oldPos != newPos) {
+        m_canvas->undoManager()->push(new ResizeItemCommand(target, oldSize, newSize, oldPos, newPos));
+    }
+}
+
+void CanvasController::onRotateFinished(Shape* target, qreal oldRotation, qreal newRotation)
+{
+    if (!target || !m_canvas || !m_canvas->undoManager()) return;
+    if (!qFuzzyCompare(oldRotation, newRotation)) {
+        m_canvas->undoManager()->push(new RotateItemCommand(target, oldRotation, newRotation));
+    }
+}
+
+void CanvasController::onEndpointMoveFinished(Shape* target, HandleType type, QPointF oldScenePos, QPointF newScenePos)
+{
+    Q_UNUSED(newScenePos);
+    if (!target || !m_canvas || !m_canvas->undoManager()) return;
+
+    if (auto* line = dynamic_cast<LineShape*>(target)) {
+        QPointF finalStart = line->getStartPoint();
+        QPointF finalEnd = line->getEndPoint();
+
+        QPointF oldStart = finalStart;
+        QPointF oldEnd = finalEnd;
+
+        if (type == HandleType::StartEndpoint) {
+            oldStart = oldScenePos;
+        } else if (type == HandleType::EndEndpoint) {
+            oldEnd = oldScenePos;
+        }
+
+        if (!qFuzzyCompare(oldStart.x(), finalStart.x()) || !qFuzzyCompare(oldStart.y(), finalStart.y()) ||
+            !qFuzzyCompare(oldEnd.x(), finalEnd.x()) || !qFuzzyCompare(oldEnd.y(), finalEnd.y())) {
+            m_canvas->undoManager()->push(new MoveEndpointCommand(line, oldStart, oldEnd, finalStart, finalEnd));
+        }
+    }
+}
+
+void CanvasController::onConnectorEndpointMoveFinished(Connector *target, HandleType endpoint, const ConnectorAnchor &oldAnchor, const ConnectorAnchor &newAnchor)
+{
+    if (!target || !m_canvas || !m_canvas->undoManager()) return;
+
+    if (oldAnchor != newAnchor) {
+        ModifyConnectorCommand::Endpoint ep = (endpoint == HandleType::StartEndpoint) ?
+            ModifyConnectorCommand::Endpoint::Start : ModifyConnectorCommand::Endpoint::End;
+        m_canvas->undoManager()->push(new ModifyConnectorCommand(target, ep, oldAnchor, newAnchor));
+    }
 }

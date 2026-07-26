@@ -43,6 +43,28 @@ public:
         m_targetShape.clear();
     }
 
+    bool operator==(const ConnectorAnchor& other) const {
+        if (m_mode != other.m_mode) return false;
+
+        switch (m_mode) {
+            case Mode::Free:
+                return qFuzzyCompare(m_freeScenePoint.x(), other.m_freeScenePoint.x()) &&
+                       qFuzzyCompare(m_freeScenePoint.y(), other.m_freeScenePoint.y());
+            case Mode::Boundary:
+                return m_targetShape == other.m_targetShape &&
+                       qFuzzyCompare(m_boundaryAngle, other.m_boundaryAngle);
+            case Mode::Interior:
+                return m_targetShape == other.m_targetShape &&
+                       qFuzzyCompare(m_interiorNormalized.x(), other.m_interiorNormalized.x()) &&
+                       qFuzzyCompare(m_interiorNormalized.y(), other.m_interiorNormalized.y());
+        }
+        return false;
+    }
+
+    bool operator!=(const ConnectorAnchor& other) const {
+        return !(*this == other);
+    }
+
 private:
     Mode m_mode = Mode::Free;
     QPointF m_freeScenePoint;                 // Free 模式下的固定坐标

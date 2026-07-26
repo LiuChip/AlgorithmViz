@@ -10,6 +10,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPointer>
+#include <QFlags>
 #include <QGraphicsObject>
 #include <QPainter>
 #include <QPen>
@@ -114,14 +115,14 @@ signals:
     void connectorModified(Connector* connector);
 
 private:
-    void startCreating(const QPointF& scenePos, bool ctrlPressed);
-    void updateCreating(const QPointF& scenePos, bool ctrlPressed);
-    void finishCreating(const QPointF& scenePos, bool ctrlPressed);
+    void startCreating(const QPointF& scenePos, Qt::KeyboardModifiers modifiers);
+    void updateCreating(const QPointF& scenePos, Qt::KeyboardModifiers modifiers);
+    void finishCreating(const QPointF& scenePos, Qt::KeyboardModifiers modifiers);
     void abortCreating();
 
-    void startDraggingEndpoint(Connector* connector, EndpointType endpoint, const QPointF& scenePos, bool ctrlPressed);
-    void updateDraggingEndpoint(const QPointF& scenePos, bool ctrlPressed);
-    void finishDraggingEndpoint(const QPointF& scenePos, bool ctrlPressed);
+    void startDraggingEndpoint(Connector* connector, EndpointType endpoint, const QPointF& scenePos, Qt::KeyboardModifiers modifiers);
+    void updateDraggingEndpoint(const QPointF& scenePos, Qt::KeyboardModifiers modifiers);
+    void finishDraggingEndpoint(const QPointF& scenePos, Qt::KeyboardModifiers modifiers);
 
     void updateSnapIndicator(const ConnectorAnchor& anchor);
     void hideSnapIndicator();

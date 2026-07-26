@@ -37,10 +37,10 @@ public:
   void setTextLayoutMode(TextLayoutMode mode);
 
   // 设置文本框尺寸；数值有效时同时切换到 FixedSize 模式。
-  bool setSize(QSizeF size) override;
+  bool setSize(QSizeF size, ApplyMode mode = ApplyMode::UserEdit) override;
 
-  // 设置文本框宽高；数值有效时同时切换到 FixedSize 模式。
-  bool setSize(qreal width, qreal height) override;
+  // 使用指定的 width、height 更新文本标签容器尺寸
+  bool setSize(qreal width, qreal height, ApplyMode mode = ApplyMode::UserEdit) override;
 
   // 设置文本样式，并在 AutoSize 模式下重新计算尺寸。
   void setTextInfo(TextStyle textStyle) override;

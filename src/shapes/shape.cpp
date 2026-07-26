@@ -12,28 +12,46 @@ void Shape::setID() { id = IdVal++; }
 
 QPointF Shape::getPosition() const { return pos(); }
 
-bool Shape::setPosition(QPointF point) {
-  if (lock_stat || !std::isfinite(point.x()) || !std::isfinite(point.y())) {
+bool Shape::setPosition(QPointF point, ApplyMode mode) {
+  if (!std::isfinite(point.x()) || !std::isfinite(point.y())) {
     return false;
   }
+  if (mode == ApplyMode::UserEdit && lock_stat) {
+    return false;
+  }
+
+  bool wasLocked = lock_stat;
+  if (mode != ApplyMode::UserEdit) lock_stat = false;
   setPos(point);
+  if (mode != ApplyMode::UserEdit) lock_stat = wasLocked;
+
   update();
   return true;
 }
 
-bool Shape::setPosition(qreal x, qreal y) { return setPosition(QPointF(x, y)); }
+bool Shape::setPosition(qreal x, qreal y, ApplyMode mode) {
+  return setPosition(QPointF(x, y), mode);
+}
 
 QSizeF Shape::getSize() const { return QSizeF(width, height); }
 
-bool Shape::setSize(QSizeF size) { return setSize(size.width(), size.height()); }
+bool Shape::setSize(QSizeF size, ApplyMode mode) {
+  return setSize(size.width(), size.height(), mode);
+}
 
-bool Shape::setSize(qreal newWidth, qreal newHeight) {
+bool Shape::setSize(qreal newWidth, qreal newHeight, ApplyMode mode) {
   if (!std::isfinite(newWidth) || !std::isfinite(newHeight) || newWidth < 0.0 || newHeight < 0.0) {
     return false;
   }
-  if (lock_stat || (this->width == newWidth && this->height == newHeight)) {
+  if (mode == ApplyMode::UserEdit && lock_stat) {
     return false;
   }
+  if (this->width == newWidth && this->height == newHeight) {
+    return false;
+  }
+
+  bool wasLocked = lock_stat;
+  if (mode != ApplyMode::UserEdit) lock_stat = false;
 
   // 保存修改前的几何中心在场景空间中的绝对位置
   QPointF oldCenterScene = mapToScene(QPointF(this->width * 0.5, this->height * 0.5));
@@ -53,25 +71,42 @@ bool Shape::setSize(qreal newWidth, qreal newHeight) {
 
   update();
   emit geometryChanged();
+  if (mode != ApplyMode::UserEdit) lock_stat = wasLocked;
   return true;
 }
 
 qreal Shape::getRotation() const { return QGraphicsItem::rotation(); }
 
-bool Shape::setRotation(qreal rotation) {
-  if (lock_stat || !std::isfinite(rotation)) {
+bool Shape::setRotation(qreal rotation, ApplyMode mode) {
+  if (!std::isfinite(rotation)) {
     return false;
   }
+  if (mode == ApplyMode::UserEdit && lock_stat) {
+    return false;
+  }
+
+  bool wasLocked = lock_stat;
+  if (mode != ApplyMode::UserEdit) lock_stat = false;
   QGraphicsItem::setRotation(rotation);
+  if (mode != ApplyMode::UserEdit) lock_stat = wasLocked;
+
   update();
   return true;
 }
 
-bool Shape::setScale(qreal scale) {
-  if (lock_stat || !std::isfinite(scale) || qFuzzyIsNull(scale) || scale <= 0.0) {
+bool Shape::setScale(qreal scale, ApplyMode mode) {
+  if (!std::isfinite(scale) || scale <= 0.0) {
     return false;
   }
+  if (mode == ApplyMode::UserEdit && lock_stat) {
+    return false;
+  }
+
+  bool wasLocked = lock_stat;
+  if (mode != ApplyMode::UserEdit) lock_stat = false;
   QGraphicsItem::setScale(scale);
+  if (mode != ApplyMode::UserEdit) lock_stat = wasLocked;
+
   update();
   return true;
 }
@@ -206,7 +241,16 @@ Shape::Shape(QPointF point, QSizeF size)
 }
 
 void Shape::updateTransformOrigin() {
-  setTransformOriginPoint(this->width * 0.5, this->height * 0.5);
+  setTransformOriginPoint(width * 0.5, height * 0.5);
+}
+
+void Shape::setID(int explicitId) {
+  if (explicitId < 0) return; // Prevent negative IDs
+  this->id = explicitId;
+  // 同步推高全局的自增计数器，确保未来用户新建图形时不会产生 ID 冲突
+  if (explicitId >= IdVal) {
+      IdVal = explicitId + 1;
+  }
 }
 
 QVariant Shape::itemChange(GraphicsItemChange change, const QVariant &value) {

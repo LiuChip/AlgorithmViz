@@ -8,11 +8,46 @@
 // 兼容 Windows MSVC / C++17 不保证 M_PI 的跨平台方案
 constexpr qreal kPi = 3.14159265358979323846;
 
+namespace {
+
+// 返回一个以 tip 为尖端、沿 fromPoint -> tip 方向指向的箭头三角形。
+// 起点箭头和终点箭头共用这段计算，避免两套公式逐渐产生偏差。
+QPolygonF arrowPolygonForTip(const QPointF &tip, const QPointF &fromPoint,
+                             qreal arrowSize)
+{
+    const qreal angle = std::atan2(tip.y() - fromPoint.y(),
+                                   tip.x() - fromPoint.x());
+    const qreal angleOffset = kPi / 6.0;
+    const QPointF first = tip - QPointF(arrowSize * std::cos(angle - angleOffset),
+                                        arrowSize * std::sin(angle - angleOffset));
+    const QPointF second = tip - QPointF(arrowSize * std::cos(angle + angleOffset),
+                                         arrowSize * std::sin(angle + angleOffset));
+
+    QPolygonF polygon;
+    polygon << tip << first << second;
+    return polygon;
+}
+
+bool connectorShowsArrows(Connector::EndStyle style,
+                          const Border &border,
+                          const QPointF &startPoint,
+                          const QPointF &endPoint)
+{
+    return style != Connector::EndStyle::None &&
+           startPoint != endPoint &&
+           border.borderWidth > 0.0 &&
+           border.borderStyle != Qt::NoPen;
+}
+
+} // namespace
+
 Connector::Connector(QPointF startScenePt, QPointF endScenePt)
     : Shape(0.0, 0.0, 0.0, 0.0) // 坐标系默认全部归于画布原点，靠端点坐标直接展示
 {
     // 【重要防护】：连线绝不允许被鼠标直接拖拽整根身体到处跑！必须锁定它的整体移动性
     setFlag(ItemIsMovable, false);
+
+    setBorderInfo(Border(2.0, QColor("#303133"), Qt::SolidLine));
 
     // 初始化为自由坐标模式
     startAnchor = ConnectorAnchor::createFree(startScenePt);
@@ -112,16 +147,16 @@ void Connector::onTargetGeometryChanged() {
     refreshGeometry();
 }
 
-bool Connector::setStartAnchor(const ConnectorAnchor& anchor) {
-    if (isLocked()) return false; // 锁定状态下禁止用户主动修改端点
+bool Connector::setStartAnchor(const ConnectorAnchor& anchor, ApplyMode mode) {
+    if (mode == ApplyMode::UserEdit && isLocked()) return false; // 用户编辑且处于锁定状态下禁止修改端点
     startAnchor = anchor;
     rebuildTargetConnections();
     refreshGeometry();
     return true;
 }
 
-bool Connector::setEndAnchor(const ConnectorAnchor& anchor) {
-    if (isLocked()) return false; // 锁定状态下禁止用户主动修改端点
+bool Connector::setEndAnchor(const ConnectorAnchor& anchor, ApplyMode mode) {
+    if (mode == ApplyMode::UserEdit && isLocked()) return false; // 用户编辑且处于锁定状态下禁止修改端点
     endAnchor = anchor;
     rebuildTargetConnections();
     refreshGeometry();
@@ -164,20 +199,14 @@ void Connector::setLocked(bool locked) {
 QPainterPath Connector::visualPath() const {
     QPainterPath path = localGeometryPath();
 
-    if (endStyle == EndStyle::Arrow && startPoint != endPoint &&
-        border.borderWidth > 0.0 && border.borderStyle != Qt::NoPen) {
-        qreal angle = std::atan2(endPoint.y() - startPoint.y(), endPoint.x() - startPoint.x());
-        qreal arrowSize = qMax<qreal>(10.0, border.borderWidth * 3.0);
-        qreal angleOffset = kPi / 6.0; // 30 度角
-
-        QPointF arrowP1 = endPoint - QPointF(arrowSize * std::cos(angle - angleOffset),
-                                             arrowSize * std::sin(angle - angleOffset));
-        QPointF arrowP2 = endPoint - QPointF(arrowSize * std::cos(angle + angleOffset),
-                                             arrowSize * std::sin(angle + angleOffset));
-
-        QPolygonF arrowPolygon;
-        arrowPolygon << endPoint << arrowP1 << arrowP2;
-        path.addPolygon(arrowPolygon);
+    if (connectorShowsArrows(endStyle, border, startPoint, endPoint)) {
+        const qreal arrowSize = qMax<qreal>(10.0, border.borderWidth * 3.0);
+        if (endStyle == EndStyle::Arrow || endStyle == EndStyle::DualArrow) {
+            path.addPolygon(arrowPolygonForTip(endPoint, startPoint, arrowSize));
+        }
+        if (endStyle == EndStyle::DualArrow) {
+            path.addPolygon(arrowPolygonForTip(startPoint, endPoint, arrowSize));
+        }
     }
     return path;
 }
@@ -214,21 +243,15 @@ void Connector::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
     painter->drawLine(startPoint, endPoint);
 
     // 2. 如果是箭头样式，填充底纹画出箭头三角形
-    if (endStyle == EndStyle::Arrow && startPoint != endPoint &&
-        border.borderWidth > 0.0 && border.borderStyle != Qt::NoPen) {
-        qreal angle = std::atan2(endPoint.y() - startPoint.y(), endPoint.x() - startPoint.x());
-        qreal arrowSize = qMax<qreal>(10.0, border.borderWidth * 3.0);
-        qreal angleOffset = kPi / 6.0;
-
-        QPointF arrowP1 = endPoint - QPointF(arrowSize * std::cos(angle - angleOffset),
-                                             arrowSize * std::sin(angle - angleOffset));
-        QPointF arrowP2 = endPoint - QPointF(arrowSize * std::cos(angle + angleOffset),
-                                             arrowSize * std::sin(angle + angleOffset));
-
-        QPolygonF arrowPolygon;
-        arrowPolygon << endPoint << arrowP1 << arrowP2;
+    if (connectorShowsArrows(endStyle, border, startPoint, endPoint)) {
+        const qreal arrowSize = qMax<qreal>(10.0, border.borderWidth * 3.0);
         painter->setBrush(border.borderColor);
-        painter->drawPolygon(arrowPolygon);
+        if (endStyle == EndStyle::Arrow || endStyle == EndStyle::DualArrow) {
+            painter->drawPolygon(arrowPolygonForTip(endPoint, startPoint, arrowSize));
+        }
+        if (endStyle == EndStyle::DualArrow) {
+            painter->drawPolygon(arrowPolygonForTip(startPoint, endPoint, arrowSize));
+        }
     }
 
     // 3. 绘制文字标签

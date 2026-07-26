@@ -9,6 +9,8 @@
 #include <QPen>
 #include <QBrush>
 #include "shapes/shape.h"
+#include "shapes/connector/connector.h"
+#include "shapes/connector/connector_anchor.h"
 
 class Shape;
 class QGraphicsSceneMouseEvent;
@@ -81,6 +83,7 @@ signals:
     void rotateFinished(Shape *target, qreal oldAngle, qreal newAngle);
     void endpointMoveStarted(Shape *target, HandleType endpoint);
     void endpointMoveFinished(Shape *target, HandleType endpoint, const QPointF &oldScenePos, const QPointF &newScenePos);
+    void connectorEndpointMoveFinished(Connector *target, HandleType endpoint, const ConnectorAnchor &oldAnchor, const ConnectorAnchor &newAnchor);
 
 private slots:
     void onTargetGeometryChanged();
@@ -102,12 +105,12 @@ private:
 private:
     QPointer<Shape> m_target;
     QList<HandleItem*> m_handles;
-    // 操作期间的初始快照记录
+    bool m_isOperating = false;
     QSizeF m_startSize;
     QPointF m_startPos;
-    qreal m_startRotation = 0.0;
+    qreal m_startRotation;
     QPointF m_startEndpointPos;
-    bool m_isOperating = false;
+    ConnectorAnchor m_startConnectorAnchor;
 
 };
 

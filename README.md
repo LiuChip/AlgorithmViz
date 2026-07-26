@@ -1,123 +1,143 @@
-# AlgorithmViz — 算法图形可视化与编辑工具
+# AlgorithmViz — 算法图形可视化与 HTML 双向编辑器
 
-> 当前版本：`v0.2.0-alpha` (阶段一闭环 / 阶段二进行中)
-> 详细技术交接与类参考规格文档，请参阅单点真实数据源：[AI_HANDOVER.md](file:///Users/liuchip/Workspace/Project%20C%20&%20C++/AlgorithmViz/AI_HANDOVER.md)
+AlgorithmViz 是一个使用 **C++17 / Qt 6** 开发的桌面图形编辑器，面向流程图、数据结构示意图和算法演示图的快速制作。项目以 `QGraphicsScene` 为画布模型，同时把工程保存为可读、可编辑的 HTML；用户既可以直接操作图形，也可以编辑代码并显式执行回画布。
 
----
+## 当前能力
 
-## 📌 项目定位
+### 图形与连接
 
-**AlgorithmViz** 是一个轻量级、面向开发者的 C++/Qt 算法图形可视化与编辑器。
-它的核心产品目标是通过简洁流畅的交互，快速绘制树、图、数据结构演示步骤、流程图等算法图，并在后续将图元一键导出为 **高适配 HTML/SVG 代码片段**，方便直接插入 Markdown 学习笔记、学术博客或文档中。
+- 矩形、椭圆、菱形、文本标签。
+- 直线、单向箭头、双向箭头。
+- 可吸附连接线：边界角度锚点、内部归一化锚点和运行时 Free 端点。
+- 图形移动、缩放、旋转、框选、多选、复制、粘贴、删除。
+- 几何锁定：阻止位置、尺寸、旋转和缩放变化，但仍允许编辑样式与文本。
+- 控制盒及屏幕尺寸稳定的缩放/旋转手柄。
 
-> **设计准则**：轻量优先、自愈容错、极简易用——不仅够用，而且健壮。
+### 编辑器与工程文件
 
----
+- HTML 语法高亮、行号、当前行高亮、补全和诊断标记。
+- 画布修改自动序列化到编辑器。
+- 编辑器修改仅在点击右下角 `▶` 或按 `Ctrl+Enter` 后应用到画布。
+- 工程元数据保存在 HTML 的 JSON `<script>` 块中；解析器兼容旧元数据标识。
+- 打开、保存、另存为、最近文件、未保存更改确认。
+- PNG、JPEG、SVG 和完整 HTML 导出。
 
-## 🛠️ 技术栈
+### UI
 
-| 模块组件 | 技术 / 框架 | 关键说明 |
-| :--- | :--- | :--- |
-| **开发语言** | C++17 | 使用现代 C++ 标准算法与数学检查函数 (`std::isfinite` / `std::clamp`) 确保边界数值防护 |
-| **图形界面** | Qt 6.11.1 | 采用 `QGraphicsView` + `QGraphicsScene` + `QGraphicsObject` 构建高性能矢量渲染画布 |
-| **构建系统** | CMake 3.20+ + Ninja | 开启严格编译诊断选项 (`-Wall -Wpedantic -Wshadow`) 确保生产级编译零错误零警告 |
-| **测试驱动** | QTest / ctest | 搭载双测试套件 (`connector_test` 57项 / `layout_engine_test` 6项)，提供毫秒级高确定性闭环回归 |
+- 自动隐藏标题栏的可停靠面板。
+- 四套布局预设：
+  - Classic 2x3（默认）
+  - Dual-Core Split
+  - Zen / Pure Canvas
+  - Code Focused
+- 图形列表（Shape Explorer）：
+  - 按 Z 值降序显示顶层图形；
+  - 图标、名称、可见性和锁定状态；
+  - 画布与列表双向选择同步；
+  - 名称、可见性、锁定和层级修改进入撤销栈；
+  - 单项拖拽到条目上合并层级，拖拽到条目间隙或列表底部重排层级。
+- 属性面板：位置、尺寸、旋转、图层、边框、填充、文本和 `TextLabel` 独有布局模式。
+- 诊断面板：显示级别、行号和消息，双击可跳转到编辑器行。
 
----
+## 核心设计约束
 
-## 📁 核心项目结构
+- `Shape` 继承 `QGraphicsObject`，不允许无参构造，创建时必须给出位置和尺寸。
+- `ConnectableShape` 只表示可被连接的封闭图形；自由线和 `Connector` 不作为吸附目标。
+- `LineShape` 系列以端点为几何真源，宽高是只读派生结果。
+- `Connector` 直接继承 `Shape`，避免连接线吸附连接线形成递归关系。
+- 工程加载采用两阶段恢复：先创建所有普通图形并建立 ID 映射，再解析连接线。
+- 文件中的显式 ID 可按任意顺序恢复；加载器会推进全局 ID 计数器，后续新建图形不会与已加载对象冲突。
+- 用户可见的画布操作统一通过 `UndoManager` / `QUndoCommand` 提交。
+- 布局快照按事务应用；任一图形执行失败时逆序回滚已应用修改。
+
+## 项目结构
 
 ```text
 src/
-├── main.cpp                       # 主运行入口
+├── main.cpp
 ├── core/
-│   ├── canvas.h / .cpp            # [已完成] 独立 Canvas 组件（QGraphicsView 缩放平移与事件路由总线）
-│   ├── shape_controller/
-│   │   ├── connector_controller.*  # [已完成] 连线专用控制器（吸附创建与端点重连管理）
-│   │   ├── anchor_resolver.*       # [已完成] 物理空间最短投影吸附解析器
-│   │   ├── canvas_controller.*     # [已完成] 通用图元选择、创建、移动与选区控制器
-│   │   └── control_box.*           # [已完成] 选中控制盒图元、定制旋转光标与 8向/2端点手柄
-│   ├── layout_engine/
-│   │   └── layout_engine.*         # [已完成] 水平/垂直对齐平铺、网格排布、统一尺寸与快照安全重放引擎
-│   └── undo/
-│       ├── undo_manager.*          # [已完成] QUndoStack 外壳与状态暴露组件
-│       └── undo_commands.*         # [待新建] 11 类具体操作命令子类
-├── shapes/
-│   ├── shape.*                    # [已完成] 抽象图元基类 (继承 QGraphicsObject，含三层样式与保护机制)
-│   ├── connectable_shape.*        # [已完成] 封闭多边形可吸附基类与 AnchorSpec 规范
-│   ├── rect_shape.*               # [已完成] 矩形
-│   ├── ellipse_shape.*            # [已完成] 椭圆 / 圆形
-│   ├── diamond_shape.*            # [已完成] 菱形
-│   ├── line_shape.*               # [已完成] 自由线段 (重载屏蔽常规尺寸缩放与被吸附)
-│   ├── arrow_shape.* / dual_.*    # [已完成] 单箭头 / 双箭头线
-│   ├── text_label.*               # [已完成] 独立文本图元 (支持 AutoSize 与 FixedSize 自动防护)
-│   └── connector/
-│       ├── connector_anchor.*     # [已完成] 连线端点对象模型 (支持 QPointer 防空悬防线)
-│       └── connector.*            # [已完成] 动态自愈连接线 (直接继承 Shape，从源头杜绝自连死循环)
-├── editor/                        # [待实现] HTML 片段生成编辑器
-├── export/                        # [待实现] SVG 导出模块
-└── ui/
-    └── main_window.*              # [已完成] 主窗口框架与顶部联动栏
+│   ├── canvas.*                    # QGraphicsView、镜头控制和输入路由
+│   ├── undo_manager.*              # QUndoStack 外壳
+│   ├── commands/undo_commands.*    # 创建、删除、移动、属性、布局等命令
+│   ├── document/                   # 场景快照、HTML 解析/序列化、项目元数据
+│   ├── layout_engine/              # 对齐、网格、尺寸匹配和事务快照
+│   └── shape_controller/           # 通用交互、控制盒、连接线和锚点解析
+├── shapes/                         # Shape 层次、具体图形和 Connector
+├── editor/                         # HTML 编辑器、高亮器、校验器和诊断面板
+├── export/                         # 场景导出公共逻辑与 SVG 导出
+└── ui/                             # 主窗口、工具栏、画布容器、属性/图形列表和 Dock
+
+tests/
+├── connector_test.cpp
+├── layout_engine_test.cpp
+├── undo_commands_test.cpp
+├── parser_serializer_test.cpp
+├── html_editor_ui_test.cpp
+├── shape_explorer_test.cpp
+├── main_window_integration_test.cpp
+└── svg_exporter_test.cpp
 ```
 
----
+## 构建
 
-## 🏗️ 架构设计与各层级职责
+### 依赖
 
-系统遵循**数据与视图解耦、单向事件驱动、严格防御性编程**的设计哲学，核心模块分工如下：
+- CMake 3.16+
+- 支持 C++17 的编译器
+- Qt 6，组件：`Core`、`Gui`、`Widgets`、`Svg`、`Test`
+- Ninja（推荐，但不是必须）
 
-1. **底图渲染层 (`Shape` & `ConnectableShape`)**
-   - 所有图元继承自 `QGraphicsObject` 以支持 Qt 信号/槽；内置边框 (`Border`)、填充 (`FillStyle`) 与字体 (`TextStyle`) 三级值对象。
-   - 虚几何操作方法全部设计为 `virtual bool` 返回值体系，凡参数异常（如 `NaN`、负大小）或图形被锁定即予以阻断拦截。
-2. **连接线与吸附引擎 (`Connector` & `AnchorResolver`)**
-   - `Connector` 类**直接继承 `Shape`**（不作为 `ConnectableShape`），从类型层次杜绝任何“连接线吸附连接线”的死循环发生。
-   - `AnchorResolver` 在场景物理空间计算多边形离散物理线段最短垂直距离与投影关系，配合多向二道检验 (`Double-Check`)，实现极高准度的 10px 边界/内部自动吸附。
-   - `Connector` 内部对目标连接点实施 QPointer 去重保护与目标销毁后的**自动降级自愈 (`degradeToFree`)** 机制。
-3. **中央导航与事件总线 (`Canvas` & Controllers)**
-   - `Canvas` 作为完全独立的 `QWidget` 承载，提供带有安全阈值的 `Ctrl+滚轮` 锚点平滑缩放与双键画布平移。
-   - 根据选中的工具模式 (`ToolMode`) 动态分流事件：对于各种线创建工具，通过 `AnchorResolver` 探测——若命中图元则自动由 `ConnectorController` 创建吸附连线，落在空白处则由 `CanvasController` 创建自由线段。
-4. **钉子模型与连线联动**
-   - 连线端点视作“钉在图形上的钉子”。拖动图元即拖动钉子；连线被动监听图元的 `geometryChanged()` 信号自动重算重绘，形成没有回调死循环的单向响应链。
-
----
-
-## 🚀 构建与自动化测试
-
-项目使用 CMake 与 C++17 跨平台构建，在 Unix / macOS 环境中，支持通过终端一条命令直接进行全量严格构建与双可执行自动化测试套件回归：
+### 配置与编译
 
 ```bash
-# 构建并运行全部 2 套自动化回归测试
-export QTFRAMEWORK_BYPASS_LICENSE_CHECK=1
-cmake --build build && ctest --test-dir build --output-on-failure
+cmake -S . -B build -G Ninja -DCMAKE_PREFIX_PATH=/path/to/Qt/6.x/macos
+cmake --build build --parallel 2
 ```
 
-> **测试覆盖情况**：自动化回归工程由 **双执行测试程序**（`connector_test` 57 用例与 `layout_engine_test` 6 大核心用例套件）组成，覆盖全量图形连线与多重布局计算，能在 `0.75s` 内极速 100% 绿色通过！
+如果 Qt 已在 CMake 的默认搜索路径中，可以省略 `CMAKE_PREFIX_PATH`。
 
----
+### 运行
 
-## 📋 Tasks 进度与蓝图总表
+```bash
+./build/AlgorithmViz
+```
 
-项目的完整实施蓝图分为两大阶段与十一大核心任务（具体的类成员 API 规格与算法公式，请见 [AI_HANDOVER.md](file:///Users/liuchip/Workspace/Project%20C%20&%20C++/AlgorithmViz/AI_HANDOVER.md)）：
+macOS 使用 app bundle 时也可以运行：
 
-### ✅ 阶段一：底层核心图形与连线控制系统 (100% 已闭环)
-- [x] **Task 1: Shape → QGraphicsObject 重构与几何校验深化**
-- [x] **Task 2: ConnectorAnchor 数据结构与 C++ 深度封装**
-- [x] **Task 3: Connector 图形实体类与去重自愈处理**
-- [x] **Task 4: AnchorResolver 物理几何吸附解析器**
-- [x] **Task 5: ConnectorController 交互控制器与 UAF 防护**
+```bash
+./build/AlgorithmViz.app/Contents/MacOS/AlgorithmViz
+```
 
-### 🔄 阶段二：Canvas 独立 Widget 化与应用层集成 (当前推进中)
-- [x] **Task 6: ConnectorController 行为前置收紧**（起点必吸附 A1、终点必吸附 A2、运行时单端 Free 自愈确认）
-- [x] **Task 7: Canvas 独立组件化 — 镜头导航与按键/事件动态分流路由**
-- [x] **Task 10a: UndoManager 构建与安全清场对接**
-- [x] **Task 8: CanvasController + ControlBox — 图形选择、创建、平移/键盘微移（含连线联动）与手柄/多选系统** *(已完成)*
-- [x] **Task 9: LayoutEngine — 水平/垂直对齐平铺与网格排布、统一尺寸与快照引擎 (含 ACID 事务回滚、可布局模型过滤与 UI 置空闭环)** *(已闭环)*
-- [ ] **Task 10b: UndoCommands — 11 业务操作栈命令子类**
-- [ ] **Task 11: 最终集成回归与文档封包**
+## 测试
 
----
+项目注册了 8 个 CTest 测试目标，共 134 个具名 QTest 回归用例：
 
-## 📝 开发交接与未来计划
+```bash
+ctest --test-dir build --output-on-failure
+```
 
-本项目主要于 2026 暑假集中构建推进。
-任何未来接手的 AI 助手或开发者在增加图形、扩展工具模式或更改核心流程时，**必须且仅需深入研读并遵照 [AI_HANDOVER.md](file:///Users/liuchip/Workspace/Project%20C%20&%20C++/AlgorithmViz/AI_HANDOVER.md) 第八章提供的标准检查单模板**执行开发与回归，确保原架构的高鲁棒性与零警告传统。
+需要检查更严格的编译诊断时：
+
+```bash
+cmake -S . -B build-strict -G Ninja \
+  -DCMAKE_PREFIX_PATH=/path/to/Qt/6.x/macos \
+  -DCMAKE_CXX_FLAGS='-Wall -Wextra -Wpedantic -Wshadow -Wconversion'
+cmake --build build-strict --parallel 2
+ctest --test-dir build-strict --output-on-failure
+```
+
+GUI 测试由 CMake 自动设置 `QT_QPA_PLATFORM=offscreen`，可在无显示环境中运行。
+
+## Demo
+
+构建还会生成三个独立 UI 演示程序：
+
+```bash
+./build/html_editor_demo
+./build/toolbar_demo
+./build/canvas_property_demo
+```
+
+## 开发交接
+
+详细架构决议、模块职责、同步流程、布局拓扑和扩展检查清单记录在本地 `AI_HANDOVER.md`。该文件按项目约定加入 `.gitignore`，用于 AI/开发者之间的本地交接，不作为发布产物。

@@ -16,6 +16,8 @@
 #include <Qt>
 #include <utility>
 
+class DiagramDocument;
+
 // 描述图形边框的宽度、颜色和线型。
 struct Border {
   qreal borderWidth = 0.0;
@@ -65,9 +67,17 @@ struct TextStyle {
   }
 };
 
+// 应用模式，用于区分用户交互、历史回放或反序列化加载
+enum class ApplyMode {
+  UserEdit,        // 默认用户操作，遵守 lock_stat 锁定限制
+  HistoryReplay,   // Undo/Redo 恢复历史，无视锁定限制
+  SerializationLoad // 加载工程文件，无视锁定限制
+};
+
 // 所有图形的抽象基类，负责公共属性、绘制样式、变换、锁定和克隆接口。
 class Shape : public QGraphicsObject {
   Q_OBJECT
+  friend class DiagramDocument;
 
 protected:
   static int IdVal;
@@ -109,6 +119,9 @@ private:
   // 为当前对象分配一个全局唯一的自增 ID。
   void setID();
 
+  // 强制重设 ID，并自动推高全局计数器，专供加载器 (DiagramDocument) 使用。
+  void setID(int explicitId);
+
 public:
   // Shape 不允许无参构造，所有图形都必须明确给出位置和尺寸。
   Shape() = delete;
@@ -125,29 +138,29 @@ public:
   // 返回图形在父项/场景坐标系中的位置。
   QPointF getPosition() const;
 
-  // 设置图形在父项/场景坐标系中的位置；锁定时或数值非法时忽略请求并返回 false。
-  virtual bool setPosition(QPointF point);
+  // 设置图形在父项/场景坐标系中的位置。
+  virtual bool setPosition(QPointF point, ApplyMode mode = ApplyMode::UserEdit);
 
-  // 使用 x、y 设置图形位置；锁定时或数值非法时忽略请求并返回 false。
-  virtual bool setPosition(qreal x, qreal y);
+  // 使用 x、y 设置图形位置。
+  virtual bool setPosition(qreal x, qreal y, ApplyMode mode = ApplyMode::UserEdit);
 
   // 返回图形的逻辑尺寸，不包含旋转和缩放影响。
   QSizeF getSize() const;
 
   // 设置图形尺寸；具体子类可以重载以实现特殊尺寸逻辑。
-  virtual bool setSize(QSizeF size);
+  virtual bool setSize(QSizeF size, ApplyMode mode = ApplyMode::UserEdit);
 
   // 使用 width、height 设置图形尺寸。
-  virtual bool setSize(qreal newWidth, qreal newHeight);
+  virtual bool setSize(qreal newWidth, qreal newHeight, ApplyMode mode = ApplyMode::UserEdit);
 
   // 返回图形的旋转角度。
   qreal getRotation() const;
 
-  // 设置图形旋转角度；锁定时或数值非法时忽略请求并返回 false。
-  virtual bool setRotation(qreal rotation);
+  // 设置图形旋转角度。
+  virtual bool setRotation(qreal rotation, ApplyMode mode = ApplyMode::UserEdit);
 
-  // 设置图形缩放比例；锁定时或数值非法（如正负无穷、NaN 或 <=0）时忽略请求并返回 false。
-  virtual bool setScale(qreal scale);
+  // 设置图形缩放比例。
+  virtual bool setScale(qreal scale, ApplyMode mode = ApplyMode::UserEdit);
 
   // 返回当前边框样式。
   Border getBorderInfo() const;
@@ -233,6 +246,9 @@ public:
 
   // 返回当前图形是否支持在布局引擎中统一修改尺寸（如对齐尺寸、等宽等高）。默认 true。
   virtual bool supportsLayoutSize() const { return true; }
+
+  // 属性面板和控制盒可据此禁用不具备独立旋转语义的图元。
+  virtual bool supportsRotation() const { return true; }
 
 signals:
   // 当图形的位置、尺寸、旋转或几何形状发生变化时发出此信号。

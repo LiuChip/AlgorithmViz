@@ -424,6 +424,9 @@ void ControlBox::onHandlePressed(HandleItem *handle, const QPointF &scenePos)
     if (type == HandleType::Rotate) {
         emit rotateStarted(m_target.data());
     } else if (type == HandleType::StartEndpoint || type == HandleType::EndEndpoint) {
+        if (auto *connector = dynamic_cast<Connector*>(m_target.data())) {
+            m_startConnectorAnchor = (type == HandleType::StartEndpoint) ? connector->getStartAnchor() : connector->getEndAnchor();
+        }
         emit endpointMoveStarted(m_target.data(), type);
     } else {
         emit resizeStarted(m_target.data());
@@ -438,6 +441,7 @@ void ControlBox::onHandleReleased(HandleItem *handle, const QPointF &scenePos)
     if (type == HandleType::Rotate) {
         emit rotateFinished(m_target.data(), m_startRotation, m_target->rotation());
     } else if (type == HandleType::StartEndpoint || type == HandleType::EndEndpoint) {
+        bool success = false;
         if (auto *connector = dynamic_cast<Connector*>(m_target.data())) {
             AnchorResolver::ResolveOptions options;
             options.scenePoint = scenePos;
@@ -453,18 +457,24 @@ void ControlBox::onHandleReleased(HandleItem *handle, const QPointF &scenePos)
             }
             ConnectorAnchor newAnchor = AnchorResolver::resolve(options);
             if (type == HandleType::StartEndpoint) {
-                connector->setStartAnchor(newAnchor);
+                success = connector->setStartAnchor(newAnchor);
             } else {
-                connector->setEndAnchor(newAnchor);
+                success = connector->setEndAnchor(newAnchor);
+            }
+            if (success) {
+                ConnectorAnchor finalAnchor = (type == HandleType::StartEndpoint) ? connector->getStartAnchor() : connector->getEndAnchor();
+                emit connectorEndpointMoveFinished(connector, type, m_startConnectorAnchor, finalAnchor);
             }
         } else if (auto *line = dynamic_cast<LineShape*>(m_target.data())) {
             if (type == HandleType::StartEndpoint) {
-                line->setStartPoint(scenePos);
+                success = line->setStartPoint(scenePos);
             } else {
-                line->setEndPoint(scenePos);
+                success = line->setEndPoint(scenePos);
+            }
+            if (success) {
+                emit endpointMoveFinished(m_target.data(), type, m_startEndpointPos, scenePos);
             }
         }
-        emit endpointMoveFinished(m_target.data(), type, m_startEndpointPos, scenePos);
     } else {
         emit resizeFinished(m_target.data(), m_startSize, m_target->getSize(), m_startPos, m_target->pos());
     }

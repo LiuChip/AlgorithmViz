@@ -9,15 +9,16 @@ class Connector : public Shape
 {
     Q_OBJECT
 public:
-    enum class EndStyle{
-        None,
-        Arrow
+    enum class EndStyle {
+        None,      // 普通直线
+        Arrow,     // 终点单向箭头
+        DualArrow  // 起点和终点均带箭头
     };
     explicit Connector(QPointF startScenePt, QPointF endScenePt);
 
     // 设置锚点核心接口
-    bool setStartAnchor(const ConnectorAnchor& anchor);
-    bool setEndAnchor(const ConnectorAnchor& anchor);
+    bool setStartAnchor(const ConnectorAnchor& anchor, ApplyMode mode = ApplyMode::UserEdit);
+    bool setEndAnchor(const ConnectorAnchor& anchor, ApplyMode mode = ApplyMode::UserEdit);
 
     ConnectorAnchor getStartAnchor() const { return startAnchor; }
     ConnectorAnchor getEndAnchor() const { return endAnchor; }
@@ -41,18 +42,19 @@ public:
     QPainterPath localGeometryPath() const;
 
     // 保护措施：禁用外部直接针对图形本身的位置、宽高、旋转与缩放设置并返回 false
-    bool setPosition(QPointF point) override { Q_UNUSED(point); return false; }
-    bool setPosition(qreal x, qreal y) override { Q_UNUSED(x); Q_UNUSED(y); return false; }
-    bool setSize(QSizeF size) override { Q_UNUSED(size); return false; }
-    bool setSize(qreal width, qreal height) override { Q_UNUSED(width); Q_UNUSED(height); return false; }
-    bool setRotation(qreal rotation) override { Q_UNUSED(rotation); return false; }
-    bool setScale(qreal scale) override { Q_UNUSED(scale); return false; }
+    bool setPosition(QPointF point, ApplyMode mode = ApplyMode::UserEdit) override { Q_UNUSED(point); Q_UNUSED(mode); return false; }
+    bool setPosition(qreal x, qreal y, ApplyMode mode = ApplyMode::UserEdit) override { Q_UNUSED(x); Q_UNUSED(y); Q_UNUSED(mode); return false; }
+    bool setSize(QSizeF size, ApplyMode mode = ApplyMode::UserEdit) override { Q_UNUSED(size); Q_UNUSED(mode); return false; }
+    bool setSize(qreal width, qreal height, ApplyMode mode = ApplyMode::UserEdit) override { Q_UNUSED(width); Q_UNUSED(height); Q_UNUSED(mode); return false; }
+    bool setRotation(qreal rotation, ApplyMode mode = ApplyMode::UserEdit) override { Q_UNUSED(rotation); Q_UNUSED(mode); return false; }
+    bool setScale(qreal scale, ApplyMode mode = ApplyMode::UserEdit) override { Q_UNUSED(scale); Q_UNUSED(mode); return false; }
 
     bool setBorderInfo(Border newBorder) override;
     bool setBorderInfo() override { return Shape::setBorderInfo(); }
 
     bool supportsLayoutPosition() const override { return false; }
     bool supportsLayoutSize() const override { return false; }
+  bool supportsRotation() const override { return false; }
 
 private:
     // 1. 保存端点的锚点信息，供 UI/控制层调用 setStartAnchor/setEndAnchor 接口时使用
@@ -63,8 +65,9 @@ private:
     QPointF startPoint;
     QPointF endPoint;
 
-    // 3. 终点样式（有没有箭头）
-    EndStyle endStyle = EndStyle::Arrow;
+    // 3. 终点样式。Connector 本身代表普通连线，因此默认不带箭头；
+    //    需要箭头时由创建工具或属性面板显式设置。
+    EndStyle endStyle = EndStyle::None;
 
     // 4. 专有的连接监听句柄，方便干净无死角地管理与去重
     QVector<QMetaObject::Connection> targetConnections;
