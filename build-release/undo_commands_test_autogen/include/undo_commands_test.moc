@@ -1,0 +1,164 @@
+/****************************************************************************
+** Meta object code from reading C++ file 'undo_commands_test.cpp'
+**
+** Created by: The Qt Meta Object Compiler version 69 (Qt 6.11.1)
+**
+** WARNING! All changes made in this file will be lost!
+*****************************************************************************/
+
+#include <QtCore/qmetatype.h>
+
+#include <QtCore/qtmochelpers.h>
+
+#include <memory>
+
+
+#include <QtCore/qxptype_traits.h>
+#if !defined(Q_MOC_OUTPUT_REVISION)
+#error "The header file 'undo_commands_test.cpp' doesn't include <QObject>."
+#elif Q_MOC_OUTPUT_REVISION != 69
+#error "This file was generated using the moc from 6.11.1. It"
+#error "cannot be used with the include files from this version of Qt."
+#error "(The moc has changed too much.)"
+#endif
+
+#ifndef Q_CONSTINIT
+#define Q_CONSTINIT
+#endif
+
+QT_WARNING_PUSH
+QT_WARNING_DISABLE_DEPRECATED
+QT_WARNING_DISABLE_GCC("-Wuseless-cast")
+namespace {
+struct qt_meta_tag_ZN16UndoCommandsTestE_t {};
+} // unnamed namespace
+
+template <> constexpr inline auto UndoCommandsTest::qt_create_metaobjectdata<qt_meta_tag_ZN16UndoCommandsTestE_t>()
+{
+    namespace QMC = QtMocConstants;
+    QtMocHelpers::StringRefStorage qt_stringData {
+        "UndoCommandsTest",
+        "testCreateShapeCommand",
+        "",
+        "testDeleteItemsCommandWithCascade",
+        "testDeleteItemsCommandDuplicateFree",
+        "testMoveItemsCommand",
+        "testResizeItemCommand",
+        "testRotateItemCommand",
+        "testMoveEndpointCommand",
+        "testCreateConnectorCommand",
+        "testModifyConnectorCommand",
+        "testClearSceneIntegrity",
+        "testCanvasControllerLayerCommandsAreUndoable",
+        "testCanvasControllerLayerCommandsRejectIntegerOverflow",
+        "testCanvasControllerClearAllIsUndoable",
+        "testLockedShapeUndoReplay",
+        "testConnectorAnchorEquality"
+    };
+
+    QtMocHelpers::UintData qt_methods {
+        // Slot 'testCreateShapeCommand'
+        QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testDeleteItemsCommandWithCascade'
+        QtMocHelpers::SlotData<void()>(3, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testDeleteItemsCommandDuplicateFree'
+        QtMocHelpers::SlotData<void()>(4, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testMoveItemsCommand'
+        QtMocHelpers::SlotData<void()>(5, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testResizeItemCommand'
+        QtMocHelpers::SlotData<void()>(6, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testRotateItemCommand'
+        QtMocHelpers::SlotData<void()>(7, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testMoveEndpointCommand'
+        QtMocHelpers::SlotData<void()>(8, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testCreateConnectorCommand'
+        QtMocHelpers::SlotData<void()>(9, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testModifyConnectorCommand'
+        QtMocHelpers::SlotData<void()>(10, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testClearSceneIntegrity'
+        QtMocHelpers::SlotData<void()>(11, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testCanvasControllerLayerCommandsAreUndoable'
+        QtMocHelpers::SlotData<void()>(12, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testCanvasControllerLayerCommandsRejectIntegerOverflow'
+        QtMocHelpers::SlotData<void()>(13, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testCanvasControllerClearAllIsUndoable'
+        QtMocHelpers::SlotData<void()>(14, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testLockedShapeUndoReplay'
+        QtMocHelpers::SlotData<void()>(15, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'testConnectorAnchorEquality'
+        QtMocHelpers::SlotData<void()>(16, 2, QMC::AccessPrivate, QMetaType::Void),
+    };
+    QtMocHelpers::UintData qt_properties {
+    };
+    QtMocHelpers::UintData qt_enums {
+    };
+    return QtMocHelpers::metaObjectData<UndoCommandsTest, qt_meta_tag_ZN16UndoCommandsTestE_t>(QMC::MetaObjectFlag{}, qt_stringData,
+            qt_methods, qt_properties, qt_enums);
+}
+Q_CONSTINIT const QMetaObject UndoCommandsTest::staticMetaObject = { {
+    QMetaObject::SuperData::link<QObject::staticMetaObject>(),
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN16UndoCommandsTestE_t>.stringdata,
+    qt_staticMetaObjectStaticContent<qt_meta_tag_ZN16UndoCommandsTestE_t>.data,
+    qt_static_metacall,
+    nullptr,
+    qt_staticMetaObjectRelocatingContent<qt_meta_tag_ZN16UndoCommandsTestE_t>.metaTypes,
+    nullptr
+} };
+
+void UndoCommandsTest::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void **_a)
+{
+    auto *_t = static_cast<UndoCommandsTest *>(_o);
+    if (_c == QMetaObject::InvokeMetaMethod) {
+        switch (_id) {
+        case 0: _t->testCreateShapeCommand(); break;
+        case 1: _t->testDeleteItemsCommandWithCascade(); break;
+        case 2: _t->testDeleteItemsCommandDuplicateFree(); break;
+        case 3: _t->testMoveItemsCommand(); break;
+        case 4: _t->testResizeItemCommand(); break;
+        case 5: _t->testRotateItemCommand(); break;
+        case 6: _t->testMoveEndpointCommand(); break;
+        case 7: _t->testCreateConnectorCommand(); break;
+        case 8: _t->testModifyConnectorCommand(); break;
+        case 9: _t->testClearSceneIntegrity(); break;
+        case 10: _t->testCanvasControllerLayerCommandsAreUndoable(); break;
+        case 11: _t->testCanvasControllerLayerCommandsRejectIntegerOverflow(); break;
+        case 12: _t->testCanvasControllerClearAllIsUndoable(); break;
+        case 13: _t->testLockedShapeUndoReplay(); break;
+        case 14: _t->testConnectorAnchorEquality(); break;
+        default: ;
+        }
+    }
+    (void)_a;
+}
+
+const QMetaObject *UndoCommandsTest::metaObject() const
+{
+    return QObject::d_ptr->metaObject ? QObject::d_ptr->dynamicMetaObject() : &staticMetaObject;
+}
+
+void *UndoCommandsTest::qt_metacast(const char *_clname)
+{
+    if (!_clname) return nullptr;
+    if (!strcmp(_clname, qt_staticMetaObjectStaticContent<qt_meta_tag_ZN16UndoCommandsTestE_t>.strings))
+        return static_cast<void*>(this);
+    return QObject::qt_metacast(_clname);
+}
+
+int UndoCommandsTest::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
+{
+    _id = QObject::qt_metacall(_c, _id, _a);
+    if (_id < 0)
+        return _id;
+    if (_c == QMetaObject::InvokeMetaMethod) {
+        if (_id < 15)
+            qt_static_metacall(this, _c, _id, _a);
+        _id -= 15;
+    }
+    if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
+        if (_id < 15)
+            *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
+        _id -= 15;
+    }
+    return _id;
+}
+QT_WARNING_POP

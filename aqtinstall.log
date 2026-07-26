@@ -10,3 +10,6 @@
 * Consider modifying `mirrors.trusted_mirrors` in settings.ini (see https://aqtinstall.readthedocs.io/en/stable/configuration.html#configuration)
 * Please use 'aqt list-qt windows desktop' to show versions of Qt available.
 * Please use 'aqt list-qt windows desktop --arch <QT_VERSION>' to list valid architectures.
+2026-07-27 02:09:29,411 - aqt.helper - DEBUG - helper 8266931584 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_653/Updates.xml.sha256
+2026-07-27 02:09:32,845 - aqt.helper - DEBUG - helper 8266931584 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_653_wasm_singlethread/Updates.xml.sha256
+2026-07-27 02:09:35,882 - aqt.helper - DEBUG - helper 8266931584 Attempt to download checksum at https://download.qt.io/online/qtsdkrepository/windows_x86/desktop/qt6_653_wasm_multithread/Updates.xml.sha256

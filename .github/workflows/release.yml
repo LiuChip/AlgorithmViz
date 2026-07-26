@@ -34,7 +34,7 @@ jobs:
           version: '6.5.3'
           host: ${{ matrix.os == 'macos-13' && 'mac' || 'windows' }}
           target: 'desktop'
-          arch: ${{ matrix.os == 'windows-latest' && 'win64_msvc2022_64' || '' }}
+          arch: ${{ matrix.os == 'windows-latest' && 'win64_msvc2019_64' || '' }}
           modules: 'qt5compat qtdeclarative qtimageformats qtmultimedia qtpositioning qtshadertools qtsvg qttools qtwebchannel qtwebsockets'
 
       - name: Configure CMake
